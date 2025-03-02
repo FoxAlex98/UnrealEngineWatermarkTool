@@ -43,7 +43,17 @@ public:
 		FontInfo = NewFontInfo;
 	}
 
-	FSlateFontInfo GetFontInfo() const;
+	FSlateFontInfo GetFontInfo() const
+	{
+		if (!IsValid(FontInfo.FontObject))
+		{
+			return FCoreStyle::GetDefaultFontStyle("BoldCondensed", FontInfo.Size);
+		}
+
+		return FontInfo;
+	}
+
+	
 	FUIWatermarkText() : HorizontalAlignment(HAlign_Center), VerticalAlignment(VAlign_Center)
 	{
 		bEnabled = true;
@@ -68,7 +78,8 @@ public:
 	bool bEnableUIWatermarkInEngine = false;
 	
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
-	FUIWatermarkText TitleText;
+	FUIWatermarkText WatermarkText;
 
+	//TODO: add image
 	//TODO: try to add multiple text
 };

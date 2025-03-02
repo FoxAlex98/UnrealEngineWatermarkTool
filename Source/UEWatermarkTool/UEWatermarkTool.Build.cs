@@ -26,6 +26,7 @@ public class UEWatermarkTool : ModuleRules
 			new string[]
 			{
 				"Core",
+				"Engine",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -38,7 +39,8 @@ public class UEWatermarkTool : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"UMG"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
