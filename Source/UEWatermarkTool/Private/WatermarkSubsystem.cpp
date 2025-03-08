@@ -14,8 +14,11 @@ void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	FWorldDelegates::OnStartGameInstance.AddUObject(this, &UWatermarkSubsystem::OnGameStart);
-	FWorldDelegates::OnPIEEnded.AddUObject(this, &UWatermarkSubsystem::OnGameEnd);
 
+#if WITH_EDITOR
+	FWorldDelegates::OnPIEEnded.AddUObject(this, &UWatermarkSubsystem::OnGameEnd);
+#endif
+	
 	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem Initialized (Editor or Game)"));
 }
 
@@ -42,9 +45,9 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 		WatermarkWidget = SNew(SUIWatermarkCompoundWidget);
 
 		RootCanvas->AddSlot()
-		.Anchors(FAnchors(1, 1))
-		.Alignment(FVector2D(1, 1))
-		.Offset(FMargin(-10, -10, 200, 50))
+		.Anchors(FAnchors(0, 0, 1, 1))
+		.Offset(FMargin(0, 0, 0, 0))
+		.Alignment(FVector2D(0, 0))
 		[
 			WatermarkWidget.ToSharedRef()
 		];
@@ -56,6 +59,7 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 
 		UE_LOG(LogTemp, Log, TEXT("WatermarkWidget added to viewport"));
 	}
+
 }
 
 void UWatermarkSubsystem::OnGameEnd(UGameInstance* GameInstance)

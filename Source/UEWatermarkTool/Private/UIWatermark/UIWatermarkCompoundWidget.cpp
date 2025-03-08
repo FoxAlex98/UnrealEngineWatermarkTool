@@ -7,13 +7,18 @@
 
 void SUIWatermarkCompoundWidget::Construct(const FArguments& InArgs)
 {
-
-	FUIWatermarkText WatermarkText = GetDefault<UWatermarkConfig>()->WatermarkText;
-	
+	const TArray<FUIWatermarkText>& WatermarkTexts = GetDefault<UWatermarkConfig>()->WatermarkTexts;
+    
+	TSharedPtr<SOverlay> OverlayWidget;
+    
 	ChildSlot
 	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
+		SAssignNew(OverlayWidget, SOverlay)
+	];
+    
+	for (const FUIWatermarkText& WatermarkText : WatermarkTexts)
+	{
+		OverlayWidget->AddSlot()
 		.Padding(WatermarkText.Padding.X, WatermarkText.Padding.Y)
 		.VAlign(WatermarkText.VerticalAlignment)
 		.HAlign(WatermarkText.HorizontalAlignment)
@@ -25,6 +30,6 @@ void SUIWatermarkCompoundWidget::Construct(const FArguments& InArgs)
 			.ShadowColorAndOpacity(WatermarkText.ShadowColor)
 			.ShadowOffset(WatermarkText.ShadowOffset)
 			.Text(TAttribute<FText>(WatermarkText.Text))
-		]
-	];
+		];
+	}
 }

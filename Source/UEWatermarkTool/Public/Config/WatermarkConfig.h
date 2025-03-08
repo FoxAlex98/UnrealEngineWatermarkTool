@@ -71,14 +71,19 @@ class UEWATERMARKTOOL_API UWatermarkConfig : public UDeveloperSettings
 
 public:
 
+	static const UWatermarkConfig* Get() { return GetDefault<UWatermarkConfig>(); }
+
+	virtual FName GetContainerName() const override { return TEXT("Project"); }
+	virtual FName GetSectionName() const override { return TEXT("Watermark Config"); }
+
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
-	bool bEnableUIWatermark = false;
+	bool bEnableWatermarkUI = false;
 	
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
-	bool bEnableUIWatermarkInEngine = false;
+	bool bEnableWatermarkUIInEngine = false;
 	
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
-	FUIWatermarkText WatermarkText;
+	TArray<FUIWatermarkText> WatermarkTexts;
 
 	//TODO: add image
 	//TODO: try to add multiple text
