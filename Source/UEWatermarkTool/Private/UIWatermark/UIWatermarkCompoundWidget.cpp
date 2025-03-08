@@ -2,12 +2,11 @@
 
 
 #include "UIWatermark/UIWatermarkCompoundWidget.h"
-
 #include "Config/WatermarkConfig.h"
 
 void SUIWatermarkCompoundWidget::Construct(const FArguments& InArgs)
 {
-	const TArray<FUIWatermarkText>& WatermarkTexts = GetDefault<UWatermarkConfig>()->WatermarkTexts;
+	const TArray<FWatermarkSlateWidgetData>& WatermarkWidgets = UWatermarkConfig::Get()->WatermarkSlateWidgets;
     
 	TSharedPtr<SOverlay> OverlayWidget;
     
@@ -16,20 +15,41 @@ void SUIWatermarkCompoundWidget::Construct(const FArguments& InArgs)
 		SAssignNew(OverlayWidget, SOverlay)
 	];
     
-	for (const FUIWatermarkText& WatermarkText : WatermarkTexts)
+	for (const FWatermarkSlateWidgetData& WatermarkData : WatermarkWidgets)
 	{
-		OverlayWidget->AddSlot()
-		.Padding(WatermarkText.Padding.X, WatermarkText.Padding.Y)
-		.VAlign(WatermarkText.VerticalAlignment)
-		.HAlign(WatermarkText.HorizontalAlignment)
-		[
-			SNew(STextBlock)
-			.Visibility(WatermarkText.bEnabled ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
-			.Font(WatermarkText.GetFontInfo())
-			.ColorAndOpacity(WatermarkText.Color)
-			.ShadowColorAndOpacity(WatermarkText.ShadowColor)
-			.ShadowOffset(WatermarkText.ShadowOffset)
-			.Text(TAttribute<FText>(WatermarkText.Text))
-		];
+		if (WatermarkData.Type == EWatermarkType::TextWatermark)
+		{
+			OverlayWidget->AddSlot()
+			.Padding(WatermarkData.CommonData.Padding.X, WatermarkData.CommonData.Padding.Y)
+			.VAlign(WatermarkData.CommonData.VerticalAlignment)
+			.HAlign(WatermarkData.CommonData.HorizontalAlignment)
+			[
+				SNew(STextBlock)
+				.Visibility(WatermarkData.bIsEnabled ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+				.Font(WatermarkData.TextData.GetFontInfo())
+				.ColorAndOpacity(WatermarkData.CommonData.Color)
+				.ShadowColorAndOpacity(WatermarkData.CommonData.ShadowColor)
+				.ShadowOffset(WatermarkData.CommonData.ShadowOffset)
+				.Text(WatermarkData.TextData.Text)
+			];
+		}
+		else if (WatermarkData.Type == EWatermarkType::ImageWatermark)
+		{
+			if (WatermarkData.ImageData.HasValidImage())
+			{
+				OverlayWidget->AddSlot()
+				.Padding(WatermarkData.CommonData.Padding.X, WatermarkData.CommonData.Padding.Y)
+				.VAlign(WatermarkData.CommonData.VerticalAlignment)
+				.HAlign(WatermarkData.CommonData.HorizontalAlignment)
+				[
+					SNew(SImage)
+					.Visibility(WatermarkData.bIsEnabled ? EVisibility::HitTestInvisible : EVisibility::Collapsed)
+					.Image(new FSlateImageBrush(
+						WatermarkData.ImageData.Image,
+						WatermarkData.ImageData.ImageSize,
+						WatermarkData.CommonData.Color))
+				];
+			}
+		}
 	}
 }

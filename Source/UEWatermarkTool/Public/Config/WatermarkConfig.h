@@ -1,67 +1,36 @@
 ﻿#pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "UIWatermark/UIWatermarkSlate.h"
 #include "WatermarkConfig.generated.h"
 
-USTRUCT(BlueprintType)
-struct FUIWatermarkText
+UENUM(BlueprintType)
+enum class EWatermarkType : uint8
 {
-	GENERATED_USTRUCT_BODY()
+	TextWatermark,
+	ImageWatermark
+};
 
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	bool bEnabled;
+USTRUCT(BlueprintType)
+struct FWatermarkSlateWidgetData
+{
+	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category="UI Watermark", meta = (MultiLine = "true"))
-	FText Text;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark")
+	EWatermarkType Type = EWatermarkType::TextWatermark;
 
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
-
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
-
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	FIntPoint Padding;
-
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	FLinearColor Color;
-
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	FLinearColor ShadowColor;
-
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	FVector2D ShadowOffset;
-
-private:
-	UPROPERTY(EditAnywhere, Category="UI Watermark")
-	FSlateFontInfo FontInfo;
-
-public:
-
-	FORCEINLINE void SetFontInfo(const FSlateFontInfo& NewFontInfo)
-	{
-		FontInfo = NewFontInfo;
-	}
-
-	FSlateFontInfo GetFontInfo() const
-	{
-		if (!IsValid(FontInfo.FontObject))
-		{
-			return FCoreStyle::GetDefaultFontStyle("BoldCondensed", FontInfo.Size);
-		}
-
-		return FontInfo;
-	}
-
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark")
+	bool bIsEnabled = true;
 	
-	FUIWatermarkText() : HorizontalAlignment(HAlign_Center), VerticalAlignment(VAlign_Center)
-	{
-		bEnabled = true;
-		Padding = FIntPoint(10, 10);
-		Color = FLinearColor(0.8, 0.8f, 0.8f, 0.2f);
-		ShadowColor = FLinearColor(0.f, 0.f, 0.f, 0.0);
-		ShadowOffset = FVector2D::ZeroVector;
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark", meta=(EditCondition = "bIsEnabled && Type == EWatermarkType::TextWatermark", EditConditionHides))
+	FUIWatermarkText TextData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark", meta=(EditCondition = "bIsEnabled && Type == EWatermarkType::ImageWatermark", EditConditionHides))
+	FUIWatermarkImage ImageData;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark", meta=(EditCondition = "bIsEnabled", EditConditionHides))
+	FUIWatermarkBase CommonData;
+	
 };
 
 UCLASS(config = Game, defaultconfig)
@@ -76,15 +45,12 @@ public:
 	virtual FName GetContainerName() const override { return TEXT("Project"); }
 	virtual FName GetSectionName() const override { return TEXT("Watermark Config"); }
 
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
+	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", DisplayName="Enable In Build")
 	bool bEnableWatermarkUI = false;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
+	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", DisplayName="Enable In Engine")
 	bool bEnableWatermarkUIInEngine = false;
 	
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
-	TArray<FUIWatermarkText> WatermarkTexts;
-
-	//TODO: add image
-	//TODO: try to add multiple text
+	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
 };
