@@ -16,9 +16,12 @@ struct FWatermarkSlateWidgetData
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark", DisplayName="Watermark Name")
+	FName Name = FName("Watermark Name");
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark")
 	EWatermarkType Type = EWatermarkType::TextWatermark;
-
+		
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark")
 	bool bIsEnabled = true;
 	
@@ -51,6 +54,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", DisplayName="Enable In Engine")
 	bool bEnableWatermarkUIInEngine = false;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark")
+	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", meta = (TitleProperty = "Name"))
 	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
 };

@@ -31,6 +31,7 @@ void SUIWatermarkCompoundWidget::Construct(const FArguments& InArgs)
 				.ShadowColorAndOpacity(WatermarkData.CommonData.ShadowColor)
 				.ShadowOffset(WatermarkData.CommonData.ShadowOffset)
 				.Text(WatermarkData.TextData.Text)
+				.TransformPolicy(WatermarkData.TextData.TransformPolicy)
 			];
 		}
 		else if (WatermarkData.Type == EWatermarkType::ImageWatermark)

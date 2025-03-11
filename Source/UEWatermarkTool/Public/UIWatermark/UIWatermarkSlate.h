@@ -46,10 +46,13 @@ struct FUIWatermarkText
 	UPROPERTY(EditAnywhere, Category="UI Watermark | Text", meta = (MultiLine = "true"))
 	FText Text;
 
+	UPROPERTY(EditAnywhere, Category="UI Watermark | Text")
+	ETextTransformPolicy TransformPolicy = ETextTransformPolicy::None;
+	
 private:
 	UPROPERTY(EditAnywhere, Category="UI Watermark | Text")
 	FSlateFontInfo FontInfo;
-
+	
 public:
 	FORCEINLINE void SetFontInfo(const FSlateFontInfo& NewFontInfo)
 	{
