@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogWatermark, Log, All);
+
 class FUEWatermarkToolModule : public IModuleInterface
 {
 public:

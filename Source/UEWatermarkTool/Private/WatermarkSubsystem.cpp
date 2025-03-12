@@ -1,4 +1,7 @@
 ﻿#include "WatermarkSubsystem.h"
+
+#include "WatermarkFunctionLibrary.h"
+#include "Config/WatermarkConfig.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Widgets/SWeakWidget.h"
@@ -36,18 +39,18 @@ void UWatermarkSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
+void UWatermarkSubsystem::AddWatermarkUI()
 {
-	if (GEngine && GEngine->GameViewport)
+	if (GEngine && GEngine->GameViewport && UWatermarkFunctionLibrary::ShouldShowWatermarkUI())
 	{
 		RootCanvas = SNew(SConstraintCanvas);
 
 		WatermarkWidget = SNew(SUIWatermarkCompoundWidget);
 
 		RootCanvas->AddSlot()
-		.Anchors(FAnchors(0, 0, 1, 1))
-		.Offset(FMargin(0, 0, 0, 0))
-		.Alignment(FVector2D(0, 0))
+		          .Anchors(FAnchors(0, 0, 1, 1))
+		          .Offset(FMargin(0, 0, 0, 0))
+		          .Alignment(FVector2D(0, 0))
 		[
 			WatermarkWidget.ToSharedRef()
 		];
@@ -59,7 +62,15 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 
 		UE_LOG(LogTemp, Log, TEXT("WatermarkWidget added to viewport"));
 	}
+}
 
+void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
+{
+	//Watermark UI
+	AddWatermarkUI();
+
+	//Watermark Gym
+	UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
 }
 
 void UWatermarkSubsystem::OnGameEnd(UGameInstance* GameInstance)

@@ -19,4 +19,5 @@ public:
 	void OnGameEnd(UGameInstance* GameInstance);
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	void AddWatermarkUI();
 };
