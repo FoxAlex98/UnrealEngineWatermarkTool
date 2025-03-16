@@ -50,7 +50,7 @@ def remove_metadata_from_asset(asset_path, metadata_keys):
     if loaded_asset:
         for key in metadata_keys:
             unreal.EditorAssetLibrary.remove_metadata_tag(loaded_asset, key)
-        unreal.EditorAssetLibrary.save_asset(asset_path)
+        #unreal.EditorAssetLibrary.save_asset(asset_path)
         unreal.log(f"Metadata removed from asset: {asset_path}")
     else:
         unreal.log_error(f"Asset not found: {asset_path}")
@@ -63,7 +63,7 @@ def clear_metadata(asset_path):
         if metadata_keys:
             for key in metadata_keys:
                 unreal.EditorAssetLibrary.remove_metadata_tag(loaded_asset, key)
-            unreal.EditorAssetLibrary.save_asset(asset_path)
+            #unreal.EditorAssetLibrary.save_asset(asset_path)
             unreal.log(f"All metadata cleared from asset: {asset_path}")
         else:
             unreal.log_warning(f"No metadata found to clear in asset: {asset_path}")
