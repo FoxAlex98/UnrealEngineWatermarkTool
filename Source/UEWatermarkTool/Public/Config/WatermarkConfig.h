@@ -36,7 +36,7 @@ struct FWatermarkSlateWidgetData
 	
 };
 
-UCLASS(config = Game, defaultconfig)
+UCLASS(config = Game, defaultconfig, BlueprintType)
 class UEWATERMARKTOOL_API UWatermarkConfig : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -48,25 +48,44 @@ public:
 	virtual FName GetContainerName() const override { return TEXT("Project"); }
 	virtual FName GetSectionName() const override { return TEXT("Watermark Config"); }
 
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", DisplayName="Enable In Build")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable In Build")
 	bool bEnableWatermarkUI = false;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", DisplayName="Enable In Editor")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable In Editor")
 	bool bEnableWatermarkUIInEditor = false;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "UI Watermark", meta = (TitleProperty = "Name"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", meta = (TitleProperty = "Name"))
 	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "Material Watermark", DisplayName="Enable In Build")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Material Watermark", DisplayName="Enable In Build")
 	bool bEnableWatermarkGym = false;
 	
-	UPROPERTY(Config, EditAnywhere, Category = "Material Watermark", DisplayName="Enable In Editor")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Material Watermark", DisplayName="Enable In Editor")
 	bool bEnableWatermarkGymInEditor = false;
 	
-	UPROPERTY(Config, EditDefaultsOnly, Category = "Material Watermark",
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Material Watermark",
 		DisplayName="Gym Watermark Material Parameter Collection",
 		meta=(AllowedClasses="/Script/Engine.MaterialParameterCollection"))
 	FSoftObjectPath GymMPC = nullptr;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Automatically Add Metadata On Import Asset")
+	bool bAutoAddMetadataOnImport = false;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Folder to exclude",
+		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+	TArray<FDirectoryPath> FoldersToExclude = {};
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Should Add Company Name in metadata",
+		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+	bool bShouldAddCompanyName = false;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Company Name",
+		meta=(EditCondition="bAutoAddMetadataOnImport && bShouldAddCompanyName", EditConditionHides))
+	FName CompanyName;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Additional Metadata",
+		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+	TMap<FString, FString> AdditionalMetadata = {};
 
 #if WITH_EDITOR	
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
