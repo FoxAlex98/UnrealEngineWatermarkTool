@@ -15,9 +15,25 @@ class UEWATERMARKTOOL_API UWatermarkSubsystem : public UGameViewportSubsystem
 	GENERATED_BODY()
 
 public:
+
+	//Events
 	void OnGameStart(UGameInstance* GameInstance);
 	void OnGameEnd(UGameInstance* GameInstance);
+	void OnLevenChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World);
+
+	void OnSeamlessTravelStart(UWorld* World, const FString& URL);
+	void OnPostWorldCreation(UWorld* World);
+	void OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue);
+	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
-	void AddWatermarkUI();
+
+	void AddWatermarkToViewport();
+	
+private:
+	
+	void AddSlateWatermark();
+	void AddUMGWatermark();
+
+	UWorld* GetGameWorldContextless();
 };

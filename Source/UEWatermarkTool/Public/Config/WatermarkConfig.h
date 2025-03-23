@@ -53,8 +53,14 @@ public:
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable In Editor")
 	bool bEnableWatermarkUIInEditor = false;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Use UMG UI Watermark")
+	bool bUseUMGWatermark = false;
 	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", meta = (TitleProperty = "Name"))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UMG UI Watermark", meta=(EditCondition = "bUseUMGWatermark", EditConditionHides))
+	TSoftClassPtr<UUserWidget> WatermarkUserWidgetClass;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Slate UI Watermark", meta = (TitleProperty = "Name", EditCondition = "!bUseUMGWatermark", EditConditionHides))
 	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Material Watermark", DisplayName="Enable In Build")
