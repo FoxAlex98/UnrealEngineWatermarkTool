@@ -19,7 +19,7 @@ public:
 	//Events
 	void OnGameStart(UGameInstance* GameInstance);
 	void OnGameEnd(UGameInstance* GameInstance);
-	void OnLevenChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World);
+	void OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World);
 
 	void OnSeamlessTravelStart(UWorld* World, const FString& URL);
 	void OnPostWorldCreation(UWorld* World);

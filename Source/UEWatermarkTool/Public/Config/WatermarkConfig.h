@@ -56,6 +56,9 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Use UMG UI Watermark")
 	bool bUseUMGWatermark = false;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Watermark Z Order", AdvancedDisplay, meta=(ClampMin=0))
+	int32 WatermarkZOrder = INT32_MAX-10; //Unreal add 10 on add widget to viewport
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UMG UI Watermark", meta=(EditCondition = "bUseUMGWatermark", EditConditionHides))
 	TSoftClassPtr<UUserWidget> WatermarkUserWidgetClass;

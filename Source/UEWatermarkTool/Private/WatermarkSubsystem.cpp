@@ -1,5 +1,6 @@
 ﻿#include "WatermarkSubsystem.h"
 
+#include "UEWatermarkTool.h"
 #include "WatermarkFunctionLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "Config/WatermarkConfig.h"
@@ -16,18 +17,18 @@ UUserWidget* UMGWatermarkWidget;
 
 void UWatermarkSubsystem::OnSeamlessTravelStart(UWorld* World, const FString& URL)
 {
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem OnSeamlessTravelStart"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnSeamlessTravelStart"));
 	AddWatermarkToViewport();
 }
 
 void UWatermarkSubsystem::OnPostWorldCreation(UWorld* World)
 {
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem OnPostWorldCreation"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnPostWorldCreation"));
 }
 
 void UWatermarkSubsystem::OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue)
 {
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem OnPostWorldInitialization"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnPostWorldInitialization"));
 	//TODO: check if is not in editor first time
 	AddWatermarkToViewport();
 }
@@ -47,7 +48,7 @@ void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	FWorldDelegates::OnPIEEnded.AddUObject(this, &UWatermarkSubsystem::OnGameEnd);
 #endif
 	
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem Initialized (Editor or Game)"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem Initialized (Editor or Game)"));
 }
 
 void UWatermarkSubsystem::Deinitialize()
@@ -95,10 +96,11 @@ void UWatermarkSubsystem::AddSlateWatermark()
 
 		GEngine->GameViewport->AddViewportWidgetContent(
 			SNew(SWeakWidget)
-			.PossiblyNullContent(RootCanvas.ToSharedRef())
+			.PossiblyNullContent(RootCanvas.ToSharedRef()),
+			UWatermarkConfig::Get()->WatermarkZOrder
 		);
 
-		UE_LOG(LogTemp, Log, TEXT("WatermarkWidget added to viewport"));
+		UE_LOG(LogWatermark, Log, TEXT("WatermarkWidget added to viewport"));
 	}
 }
 
@@ -106,14 +108,14 @@ void UWatermarkSubsystem::AddUMGWatermark()
 {
 	if (IsValid(UMGWatermarkWidget) && UMGWatermarkWidget->IsInViewport())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - UMGWatermarkWidget is already in viewport"));
+		UE_LOG(LogWatermark, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - UMGWatermarkWidget is already in viewport"));
 		return;
 	}
 	
 	UWorld* World = GetGameWorldContextless();
 	if (!World)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - World is null, retrying next tick"));
+		UE_LOG(LogWatermark, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - World is null, retrying next tick"));
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float DeltaTime) -> bool
 		{
 			AddUMGWatermark();
@@ -125,38 +127,38 @@ void UWatermarkSubsystem::AddUMGWatermark()
 	APlayerController* PC = World->GetFirstPlayerController();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - PlayerController is not ready, retrying next tick"));
+		UE_LOG(LogWatermark, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - PlayerController is not ready, retrying next tick"));
 		World->GetTimerManager().SetTimerForNextTick(this, &UWatermarkSubsystem::AddUMGWatermark);
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - PlayerController found, proceeding with widget creation"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - PlayerController found, proceeding with widget creation"));
 
 	TSoftClassPtr<UUserWidget> WatermarkClass = UWatermarkConfig::Get()->WatermarkUserWidgetClass;
 	if (!WatermarkClass.IsValid())
 	{
-		UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - WatermarkUserWidgetClass is invalid"));
+		UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - WatermarkUserWidgetClass is invalid"));
 		return;
 	}
 
 	UClass* WidgetClass = WatermarkClass.LoadSynchronous();
 	if (!WidgetClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - LoadSynchronous() returned nullptr"));
+		UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - LoadSynchronous() returned nullptr"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget class loaded successfully, creating widget"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget class loaded successfully, creating widget"));
 
 	UMGWatermarkWidget = CreateWidget<UUserWidget>(PC, WidgetClass);
 	if (!UMGWatermarkWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - CreateWidget returned nullptr"));
+		UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - CreateWidget returned nullptr"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget created successfully, adding to viewport"));
-	UMGWatermarkWidget->AddToViewport();
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget created successfully, adding to viewport"));
+	UMGWatermarkWidget->AddToViewport(UWatermarkConfig::Get()->WatermarkZOrder);
 }
 
 UWorld* UWatermarkSubsystem::GetGameWorldContextless()
@@ -175,7 +177,6 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 {
 	//Watermark UI
 	AddWatermarkToViewport();
-	
 
 	//Watermark Gym
 	UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
@@ -183,6 +184,11 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 
 void UWatermarkSubsystem::OnGameEnd(UGameInstance* GameInstance)
 {
-	UE_LOG(LogTemp, Log, TEXT("WatermarkSubsystem ended in Editor"));
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem ended in Editor"));
+}
+
+void UWatermarkSubsystem::OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World)
+{
+	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnLevelChange"));
 }
 

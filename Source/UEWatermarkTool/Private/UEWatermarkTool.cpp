@@ -18,3 +18,5 @@ void FUEWatermarkToolModule::ShutdownModule()
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FUEWatermarkToolModule, UEWatermarkTool)
+
+DEFINE_LOG_CATEGORY(LogWatermark);
