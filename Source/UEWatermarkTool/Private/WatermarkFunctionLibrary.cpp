@@ -447,3 +447,62 @@ FString UWatermarkFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWave* So
 }
 
 #undef LOCTEXT_NAMESPACE
+
+UTexture2D* UWatermarkFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
+{
+    int32 Width  = BitString.Len();
+    int32 Height = 1;
+
+    UTexture2D* Tex = UTexture2D::CreateTransient(Width, Height, PF_R8);
+    if (!Tex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CreateBitmaskTexture: creazione della texture fallita"));
+        return nullptr;
+    }
+
+    Tex->MipGenSettings      = TMGS_NoMipmaps;
+    Tex->SRGB                = false;
+    Tex->CompressionSettings = TC_Default;
+    Tex->AddToRoot();
+    Tex->UpdateResource();
+
+    TArray<uint8> RawData;
+    RawData.AddUninitialized(Width * Height);
+    for (int32 i = 0; i < Width; ++i)
+    {
+        RawData[i] = (BitString[i] == '1') ? 0xFF : 0x00;
+    }
+
+    FTexture2DMipMap& Mip = Tex->GetPlatformData()->Mips[0];
+    void* TextureData = Mip.BulkData.Lock(LOCK_READ_WRITE);
+    FMemory::Memcpy(TextureData, RawData.GetData(), RawData.Num() * sizeof(uint8));
+    Mip.BulkData.Unlock();
+
+    Tex->UpdateResource();
+
+    return Tex;
+}
+
+#include "Misc/CString.h"
+
+FString UWatermarkFunctionLibrary::StringToBitString(const FString& Input)
+{
+    FTCHARToUTF8 Utf8Converter(*Input);
+    const uint8* Data   = reinterpret_cast<const uint8*>(Utf8Converter.Get());
+    int32       Length  = Utf8Converter.Length();
+
+    FString BitString;
+    BitString.Reserve(Length * 8);
+
+    for (int32 i = 0; i < Length; ++i)
+    {
+        uint8 Byte = Data[i];
+        for (int bit = 7; bit >= 0; --bit)
+        {
+            bool bIsOne = ((Byte >> bit) & 0x1) != 0;
+            BitString.AppendChar(bIsOne ? '1' : '0');
+        }
+    }
+
+    return BitString;
+}

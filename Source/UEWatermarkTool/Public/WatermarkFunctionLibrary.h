@@ -45,4 +45,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Audio Watermark")
 	static FString ExtractSpreadSpectrumWatermark(USoundWave* SoundWave, int32 MessageLength);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark")
+	static UTexture2D* CreateBitmaskTexture(const FString& BitString);
+
+	UFUNCTION(BlueprintPure, Category="Watermark")
+	static FString StringToBitString(const FString& Input);
 };
