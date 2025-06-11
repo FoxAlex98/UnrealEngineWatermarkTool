@@ -24,7 +24,10 @@ public:
 	void OnSeamlessTravelStart(UWorld* World, const FString& URL);
 	void OnPostWorldCreation(UWorld* World);
 	void OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue);
-	
+
+	static void OnScreenshotCaptured(int Width, int Height, const TArray<FColor>& InBitmap);
+	static void OnViewportResizedEvent(FViewport* Viewport, unsigned I);
+	static void OnScreenshotRequestProcessed();
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
@@ -34,6 +37,8 @@ private:
 	
 	void AddSlateWatermark();
 	void AddUMGWatermark();
+
+	static FString FindLatestScreenshot();
 
 	UWorld* GetGameWorldContextless();
 };

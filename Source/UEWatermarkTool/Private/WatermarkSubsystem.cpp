@@ -1,5 +1,7 @@
 ﻿#include "WatermarkSubsystem.h"
 
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
 #include "UEWatermarkTool.h"
 #include "WatermarkFunctionLibrary.h"
 #include "Blueprint/UserWidget.h"
@@ -10,6 +12,15 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Engine/World.h"
 #include "UIWatermark/UIWatermarkCompoundWidget.h"
+#include "HighResScreenshot.h"
+#include "ImageUtils.h"
+#include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "HAL/FileManagerGeneric.h"
+#include "Modules/ModuleManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFileManager.h"
 
 TSharedPtr<SConstraintCanvas> RootCanvas;
 TSharedPtr<SUIWatermarkCompoundWidget> SlateWatermarkWidget;
@@ -33,6 +44,55 @@ void UWatermarkSubsystem::OnPostWorldInitialization(UWorld* World, FWorldInitial
 	AddWatermarkToViewport();
 }
 
+void UWatermarkSubsystem::OnScreenshotCaptured(int Width, int Height, const TArray<FColor>& InBitmap)
+{
+	UE_LOG(LogTemp, Log, TEXT("Watermark Screenshot: OnScreenshotCaptured"));
+	UE_LOG(LogTemp, Log, TEXT("Screenshot captured %dx%d"), Width, Height);
+
+	//Test rotated image
+	TArray<FColor> RotatedBitmap;
+	RotatedBitmap.SetNum(Width * Height);
+
+	for (int32 Y = 0; Y < Height; ++Y)
+	{
+		for (int32 X = 0; X < Width; ++X)
+		{
+			int32 SrcIndex = Y * Width + X;
+			int32 DestX = Height - 1 - Y;
+			int32 DestY = X;
+			int32 DestIndex = DestY * Height + DestX;
+
+			RotatedBitmap[DestIndex] = InBitmap[SrcIndex];
+		}
+	}
+
+	int32 NewWidth = Height;
+	int32 NewHeight = Width;
+
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+
+	ImageWrapper->SetRaw(RotatedBitmap.GetData(), RotatedBitmap.Num() * sizeof(FColor), NewWidth, NewHeight, ERGBFormat::BGRA, 8);
+
+	TArray64<uint8> PngData = ImageWrapper->GetCompressed();
+
+	FString ScreenshotPath = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("WindowsEditor") / TEXT("RotatedScreenshot.png");
+
+	FFileHelper::SaveArrayToFile(PngData, *ScreenshotPath);
+
+	UE_LOG(LogTemp, Log, TEXT("Rotated Screenshot Saved: %s"), *ScreenshotPath);
+}
+
+void UWatermarkSubsystem::OnViewportResizedEvent(FViewport* Viewport, unsigned I)
+{
+	UE_LOG(LogTemp, Log, TEXT("Watermark Screenshot: ViewportResizedEvent"));
+}
+
+void UWatermarkSubsystem::OnScreenshotRequestProcessed()
+{
+	UE_LOG(LogTemp, Log, TEXT("Watermark Screenshot: OnScreenshotRequestProcessed"));
+}
+
 void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -47,6 +107,10 @@ void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if WITH_EDITOR
 	FWorldDelegates::OnPIEEnded.AddUObject(this, &UWatermarkSubsystem::OnGameEnd);
 #endif
+
+	FViewport::ViewportResizedEvent.AddStatic(&UWatermarkSubsystem::OnViewportResizedEvent);
+	UGameViewportClient::OnScreenshotCaptured().AddStatic(&UWatermarkSubsystem::OnScreenshotCaptured);
+	FScreenshotRequest::OnScreenshotRequestProcessed().AddStatic(&UWatermarkSubsystem::OnScreenshotRequestProcessed);
 	
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem Initialized (Editor or Game)"));
 }
@@ -159,6 +223,39 @@ void UWatermarkSubsystem::AddUMGWatermark()
 
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget created successfully, adding to viewport"));
 	UMGWatermarkWidget->AddToViewport(UWatermarkConfig::Get()->WatermarkZOrder);
+}
+
+FString UWatermarkSubsystem::FindLatestScreenshot()
+{
+	FString ScreenshotDir = FPaths::ProjectSavedDir() / TEXT("Screenshots/");
+
+#if WITH_EDITOR
+	ScreenshotDir.Append(TEXT("WindowsEditor/"));
+#else
+	ScreenshotDir.Append(TEXT("Windows/"));
+#endif
+	
+	FString SearchPattern = ScreenshotDir / TEXT("*.png");
+
+	TArray<FString> FoundFiles;
+	IFileManager::Get().FindFiles(FoundFiles, *SearchPattern, true, false);
+
+	FDateTime LatestTime = FDateTime::MinValue();
+	FString LatestFilePath;
+
+	for (const FString& FileName : FoundFiles)
+	{
+		FString FullPath = ScreenshotDir / FileName;
+		FDateTime FileTime = IFileManager::Get().GetTimeStamp(*FullPath);
+
+		if (FileTime > LatestTime)
+		{
+			LatestTime = FileTime;
+			LatestFilePath = FullPath;
+		}
+	}
+
+	return LatestFilePath;
 }
 
 UWorld* UWatermarkSubsystem::GetGameWorldContextless()
