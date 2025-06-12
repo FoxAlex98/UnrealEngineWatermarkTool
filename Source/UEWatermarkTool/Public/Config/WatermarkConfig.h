@@ -11,6 +11,17 @@ enum class EWatermarkType : uint8
 	ImageWatermark
 };
 
+UENUM(BlueprintType)
+enum class EScreenshotWatermarkMode : uint8
+{
+	None,
+	TextOverlay,
+	ImageOverlay,
+	Slate,
+	UMG,
+	FontRasterOverlay
+};
+
 USTRUCT(BlueprintType)
 struct FWatermarkSlateWidgetData
 {
@@ -95,6 +106,24 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Additional Metadata",
 		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
 	TMap<FString, FString> AdditionalMetadata = {};
+
+	UPROPERTY(EditAnywhere, config, Category = "Watermark")
+	EScreenshotWatermarkMode WatermarkMode = EScreenshotWatermarkMode::None;
+
+	UPROPERTY(EditAnywhere, config, Category = "TextOverlay")
+	FString OverlayText;
+
+	UPROPERTY(EditAnywhere, config, Category = "TextOverlay")
+	FColor BackgroundColor = FColor::Red;
+
+	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
+	TSoftObjectPtr<UTexture2D> ImageOverlayTexture;
+
+	UPROPERTY(EditAnywhere, config, Category = "FontRasterOverlay")
+	FString FontText;
+
+	UPROPERTY(EditAnywhere, Category = "FontRasterOverlay")
+	UFont* Font;
 
 #if WITH_EDITOR	
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

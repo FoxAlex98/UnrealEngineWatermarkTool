@@ -20,12 +20,14 @@ public:
 	void OnGameStart(UGameInstance* GameInstance);
 	void OnGameEnd(UGameInstance* GameInstance);
 	void OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World);
+	static FColor AlphaBlend(const FColor& Src, const FColor& Dst);
 
 	void OnSeamlessTravelStart(UWorld* World, const FString& URL);
 	void OnPostWorldCreation(UWorld* World);
+	void OnPostLoadMapWithWorld(UWorld* World);
 	void OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue);
 
-	static void OnScreenshotCaptured(int Width, int Height, const TArray<FColor>& InBitmap);
+	void OnScreenshotCaptured(int Width, int Height, const TArray<FColor>& InBitmap);
 	static void OnViewportResizedEvent(FViewport* Viewport, unsigned I);
 	static void OnScreenshotRequestProcessed();
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -41,4 +43,13 @@ private:
 	static FString FindLatestScreenshot();
 
 	UWorld* GetGameWorldContextless();
+
+	static void ApplyTextOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, const FColor& RectColor);
+	static void ApplyImageOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UTexture2D* WatermarkTexture);
+	static void ApplyFontRasterWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, UFont* Font);
+	static void ApplyWidgetOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UObject* WorldContextObject);
+	static void ApplySlateWidgetWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap);
+
+	UPROPERTY(Transient)
+	UWorld* CurrentGameWorldRef;
 };

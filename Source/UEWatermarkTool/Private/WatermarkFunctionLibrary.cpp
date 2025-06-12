@@ -7,9 +7,11 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/Texture2D.h"
 #include "ImageUtils.h"
+#include "UEWatermarkTool.h"
+#include "Blueprint/UserWidget.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Slate/WidgetRenderer.h"
 #include "Sound/SoundWave.h"
-
-#define PI 3.14159265359
 
 bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
 {
@@ -447,7 +449,7 @@ FString UWatermarkFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWave* So
 }
 
 #undef LOCTEXT_NAMESPACE
-
+/*
 UTexture2D* UWatermarkFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
 {
     int32 Width  = BitString.Len();
@@ -482,6 +484,7 @@ UTexture2D* UWatermarkFunctionLibrary::CreateBitmaskTexture(const FString& BitSt
 
     return Tex;
 }
+*/
 
 #include "Misc/CString.h"
 
@@ -506,3 +509,72 @@ FString UWatermarkFunctionLibrary::StringToBitString(const FString& Input)
 
     return BitString;
 }
+
+void UWatermarkFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels)
+{
+    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
+    RenderTarget->ClearColor = FLinearColor::Transparent;
+    RenderTarget->UpdateResourceImmediate();
+
+    FWidgetRenderer Renderer(true, false);
+    Renderer.DrawWidget(RenderTarget, Widget->TakeWidget(), FVector2D(TargetWidth, TargetHeight), 0.f);
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+    OutPixels.SetNum(TargetWidth * TargetHeight);
+    RTResource->ReadPixels(OutPixels);
+}
+
+void UWatermarkFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth,
+    int32 TargetHeight, TArray<FColor>& OutPixels)
+{
+    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
+    RenderTarget->ClearColor = FLinearColor(0, 0, 0, 0);
+    RenderTarget->UpdateResourceImmediate();
+
+    FWidgetRenderer Renderer(true);
+    Renderer.DrawWidget(RenderTarget, SlateWidget, FVector2D(TargetWidth, TargetHeight), 0.f);
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+    OutPixels.SetNum(TargetWidth * TargetHeight);
+    RTResource->ReadPixels(OutPixels);
+
+    UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::RenderSlateWidgetToBitmap - Widget rendered to texture"));
+}
+
+
+UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded)
+{
+    bHasSucceeded = false;
+    TSoftClassPtr<UUserWidget> WatermarkClass = UWatermarkConfig::Get()->WatermarkUserWidgetClass;
+    if (!WatermarkClass.IsValid())
+    {
+        UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - WatermarkUserWidgetClass is invalid"));
+        bHasSucceeded = true;
+        return nullptr;
+    }
+
+    UClass* WidgetClass = WatermarkClass.LoadSynchronous();
+    if (!WidgetClass)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - LoadSynchronous() returned nullptr"));
+        bHasSucceeded = true;
+        return nullptr;
+    }
+
+    UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget class loaded successfully, creating widget"));
+
+    UUserWidget* WatermarkUserWidget = CreateWidget<UUserWidget>(PC, WidgetClass);
+    if (!WatermarkUserWidget)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - CreateWidget returned nullptr"));
+        bHasSucceeded = true;
+        return nullptr;
+    }
+
+    return WatermarkUserWidget;
+}
+
