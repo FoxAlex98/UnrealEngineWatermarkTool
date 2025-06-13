@@ -550,12 +550,15 @@ UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APla
 {
     bHasSucceeded = false;
     TSoftClassPtr<UUserWidget> WatermarkClass = UWatermarkConfig::Get()->WatermarkUserWidgetClass;
-    if (!WatermarkClass.IsValid())
+
+    /*
+    if (!WatermarkClass.IsPending())
     {
         UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - WatermarkUserWidgetClass is invalid"));
         bHasSucceeded = true;
         return nullptr;
     }
+    */
 
     UClass* WidgetClass = WatermarkClass.LoadSynchronous();
     if (!WidgetClass)
