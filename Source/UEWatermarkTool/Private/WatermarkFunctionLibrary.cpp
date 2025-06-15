@@ -7,6 +7,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/Texture2D.h"
 #include "ImageUtils.h"
+#include "StaticMeshAttributes.h"
 #include "UEWatermarkTool.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -581,3 +582,198 @@ UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APla
     return WatermarkUserWidget;
 }
 
+void UWatermarkFunctionLibrary::EmbedLSBOnRenderTarget(UTextureRenderTarget2D* RenderTarget, const FString& Message)
+{
+    if (!RenderTarget) return;
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+    if (!RTResource) return;
+
+    TArray<FColor> Pixels;
+    RTResource->ReadPixels(Pixels);
+
+    TArray<uint8> MessageBits;
+    for (TCHAR C : Message)
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            MessageBits.Add((C >> i) & 1);
+        }
+    }
+
+    int32 BitIndex = 0;
+    for (FColor& Pixel : Pixels)
+    {
+        if (BitIndex >= MessageBits.Num()) break;
+
+        if (BitIndex < MessageBits.Num())
+            Pixel.R = (Pixel.R & ~1) | MessageBits[BitIndex++];
+
+        if (BitIndex < MessageBits.Num())
+            Pixel.G = (Pixel.G & ~1) | MessageBits[BitIndex++];
+
+        if (BitIndex < MessageBits.Num())
+            Pixel.B = (Pixel.B & ~1) | MessageBits[BitIndex++];
+    }
+
+    TArray64<uint8> CompressedData;
+    FImageUtils::PNGCompressImageArray(RenderTarget->SizeX, RenderTarget->SizeY, Pixels, CompressedData);
+    FString Path = FPaths::ProjectSavedDir() / TEXT("LSB_Embedded_RenderTarget.png");
+    FFileHelper::SaveArrayToFile(CompressedData, *Path);
+
+    UE_LOG(LogWatermark, Log, TEXT("EmbedLSBOnRenderTarget - Data embedded and saved: %s"), *Path);
+}
+
+FString UWatermarkFunctionLibrary::ExtractLSBFromRenderTarget(UTextureRenderTarget2D* RenderTarget, int32 MessageLength)
+{
+    if (!RenderTarget) return "";
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+    if (!RTResource) return "";
+
+    TArray<FColor> Pixels;
+    RTResource->ReadPixels(Pixels);
+
+    TArray<uint8> Bits;
+    int32 TotalBits = MessageLength * 8;
+    int32 BitIndex = 0;
+
+    for (const FColor& Pixel : Pixels)
+    {
+        if (BitIndex >= TotalBits) break;
+        Bits.Add(Pixel.R & 1); BitIndex++;
+        if (BitIndex >= TotalBits) break;
+        Bits.Add(Pixel.G & 1); BitIndex++;
+        if (BitIndex >= TotalBits) break;
+        Bits.Add(Pixel.B & 1); BitIndex++;
+    }
+
+    FString Result;
+    for (int32 i = 0; i < MessageLength; ++i)
+    {
+        uint8 CharByte = 0;
+        for (int b = 0; b < 8; ++b)
+        {
+            CharByte |= (Bits[i * 8 + b] << b);
+        }
+        Result.AppendChar((TCHAR)CharByte);
+    }
+
+    UE_LOG(LogWatermark, Log, TEXT("ExtractLSBFromRenderTarget - Decoded: %s"), *Result);
+
+    return Result;
+}
+
+void UWatermarkFunctionLibrary::EmbedWatermarkInStaticMesh(UStaticMesh* StaticMesh, const FString& NumericPattern)
+{
+    if (!StaticMesh || NumericPattern.IsEmpty())
+    {
+        UE_LOG(LogWatermark, Error, TEXT("EmbedWatermarkInStaticMesh - Invalid parameters"));
+        return;
+    }
+
+    StaticMesh->Modify();
+
+    FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
+    if (!MeshDesc)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("EmbedWatermarkInStaticMesh - MeshDescription missing"));
+        return;
+    }
+
+    FStaticMeshAttributes Attributes(*MeshDesc);
+    TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+    TArray<FVertexID> VertexIDs;
+    FVertexArray Vertices = MeshDesc->Vertices();
+    for (auto VertexID : Vertices.GetElementIDs())
+    {
+        VertexIDs.Add(VertexID);
+        if (VertexIDs.Num() >= 3)
+            break;
+    }
+
+    if (VertexIDs.Num() < 3)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("EmbedWatermarkInStaticMesh - Not enough vertices"));
+        return;
+    }
+
+    float EncodedValue = FCString::Atof(*FString::Printf(TEXT("0.%s"), *NumericPattern));
+
+    FVector3f Pos0 = Positions[VertexIDs[0]];
+    FVector3f Pos1 = Positions[VertexIDs[1]];
+    FVector3f Pos2 = Positions[VertexIDs[2]];
+
+    Pos0.X += EncodedValue;
+    Pos1.Y += EncodedValue;
+    Pos2.Z += EncodedValue;
+
+    Positions[VertexIDs[0]] = Pos0;
+    Positions[VertexIDs[1]] = Pos1;
+    Positions[VertexIDs[2]] = Pos2;
+
+    StaticMesh->CommitMeshDescription(0);
+    StaticMesh->Build(false);
+    StaticMesh->MarkPackageDirty();
+
+    UE_LOG(LogWatermark, Log, TEXT("EmbedWatermarkInStaticMesh - Watermark %s embedded"), *NumericPattern);
+}
+
+FString UWatermarkFunctionLibrary::ExtractWatermarkFromStaticMesh(UStaticMesh* StaticMesh, int32 DecimalDigits)
+{
+    if (!StaticMesh || DecimalDigits <= 0)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("ExtractWatermarkFromStaticMesh - Invalid parameters"));
+        return FString();
+    }
+
+    const FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
+    if (!MeshDesc)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("ExtractWatermarkFromStaticMesh - MeshDescription not found"));
+        return FString();
+    }
+
+    FMeshDescription Attributes(*MeshDesc);
+    TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+    TArray<FVertexID> VertexIDs;
+    FVertexArray Vertices = MeshDesc->Vertices();
+    for (auto VertexID : Vertices.GetElementIDs())
+    {
+        VertexIDs.Add(VertexID);
+        if (VertexIDs.Num() >= 3)
+            break;
+    }
+
+    if (VertexIDs.Num() < 3)
+    {
+        UE_LOG(LogWatermark, Error, TEXT("ExtractWatermarkFromStaticMesh - Not enough vertices"));
+        return FString();
+    }
+
+    FVector3f Pos0 = Positions[VertexIDs[0]];
+    FVector3f Pos1 = Positions[VertexIDs[1]];
+    FVector3f Pos2 = Positions[VertexIDs[2]];
+
+    auto ExtractDecimal = [DecimalDigits](float Value) -> FString
+    {
+        float Fraction = FMath::Abs(Value - FMath::RoundToFloat(Value));
+        FString AsString = FString::Printf(TEXT("%.10f"), Fraction);
+        int32 DotIndex;
+        if (AsString.FindChar('.', DotIndex))
+        {
+            FString Decimals = AsString.Mid(DotIndex + 1, DecimalDigits);
+            return Decimals;
+        }
+        return FString();
+    };
+
+    FString Out = ExtractDecimal(Pos0.X);
+    Out = Out.IsEmpty() ? ExtractDecimal(Pos1.Y) : Out;
+    Out = Out.IsEmpty() ? ExtractDecimal(Pos2.Z) : Out;
+
+    UE_LOG(LogWatermark, Log, TEXT("Extracted watermark: %s"), *Out);
+    return Out;
+}
