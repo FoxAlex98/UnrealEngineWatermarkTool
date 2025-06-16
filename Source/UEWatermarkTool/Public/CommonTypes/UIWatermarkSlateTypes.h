@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
-#include "UIWatermarkSlate.generated.h"
+#include "UIWatermarkSlateTypes.generated.h"
 
 USTRUCT(BlueprintType)
 struct FUIWatermarkBase

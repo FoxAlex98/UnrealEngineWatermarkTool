@@ -4,29 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "WatermarkFunctionLibrary.generated.h"
+#include "WatermarkAssetFunctionLibrary.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class UEWATERMARKTOOL_API UWatermarkFunctionLibrary : public UBlueprintFunctionLibrary
+class UEWATERMARKTOOL_API UWatermarkAssetFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
-	
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
-	static bool ShouldShowWatermarkUI();
-	
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
-	static bool ShouldShowWatermarkGym();
-
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
-	static void SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject);
-
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
-	static void UpdateWatermarkGymEnableStatus(UObject* WorldContextObject);
 	
 	UFUNCTION(BlueprintCallable, Category = "Watermark")
 	static void EmbedLSBWatermark(UTexture2D* Texture, const FString& Message);
@@ -55,10 +43,7 @@ public:
 	static void RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels);
 	
 	static void RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels);
-
-	UFUNCTION(BlueprintPure, Category = "Watermark")
-	static UUserWidget* CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded);
-
+	
 	UFUNCTION(BlueprintCallable, Category = "Watermark|RenderTarget")
 	static void EmbedLSBOnRenderTarget(UTextureRenderTarget2D* RenderTarget, const FString& Message);
 

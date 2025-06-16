@@ -3,7 +3,6 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "UEWatermarkTool.h"
-#include "WatermarkFunctionLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "Config/WatermarkConfig.h"
 #include "Engine/Engine.h"
@@ -12,15 +11,12 @@
 #include "Widgets/Layout/SConstraintCanvas.h"
 #include "Engine/World.h"
 #include "UIWatermark/UIWatermarkCompoundWidget.h"
-#include "HighResScreenshot.h"
-#include "ImageUtils.h"
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
-#include "HAL/FileManagerGeneric.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
+#include "Utility/WatermarkAssetFunctionLibrary.h"
+#include "Utility/WatermarkFunctionLibrary.h"
 
 TSharedPtr<SConstraintCanvas> RootCanvas;
 TSharedPtr<SUIWatermarkCompoundWidget> SlateWatermarkWidget;
@@ -147,12 +143,15 @@ void UWatermarkSubsystem::AddWatermarkToViewport()
 {
 	if (UWatermarkFunctionLibrary::ShouldShowWatermarkUI())
 	{
-		if (UWatermarkConfig::Get()->bUseUMGWatermark)
+		switch (UWatermarkConfig::Get()->WidgetWatermarkType)
 		{
+		case EWidgetWatermarkType::SlateWatermark:
+			AddSlateWatermark();
+			break;
+		case EWidgetWatermarkType::UserWidgetWatermark:
 			AddUMGWatermark();
-			return;
+			break;
 		}
-		AddSlateWatermark();
 	}
 }
 
@@ -377,7 +376,7 @@ void UWatermarkSubsystem::ApplyWidgetOverlayWatermark(int32 Width, int32 Height,
 	if (!WatermarkWidget) return;
 
 	TArray<FColor> WatermarkPixels;
-	UWatermarkFunctionLibrary::RenderUserWidgetToBitmap(WatermarkWidget, Width, Height, WatermarkPixels);
+	UWatermarkAssetFunctionLibrary::RenderUserWidgetToBitmap(WatermarkWidget, Width, Height, WatermarkPixels);
 
 	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
 
@@ -415,7 +414,7 @@ void UWatermarkSubsystem::ApplySlateWidgetWatermark(int32 Width, int32 Height, c
 			];
 
 	TArray<FColor> WatermarkPixels;
-	UWatermarkFunctionLibrary::RenderSlateWidgetToBitmap(ScreenshotSlateWatermark, Width, Height, WatermarkPixels);
+	UWatermarkAssetFunctionLibrary::RenderSlateWidgetToBitmap(ScreenshotSlateWatermark, Width, Height, WatermarkPixels);
 
 	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
 

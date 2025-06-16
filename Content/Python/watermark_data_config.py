@@ -2,7 +2,7 @@ import unreal
 import os
 import getpass
 
-watermark_config = unreal.WatermarkConfig()
+watermark_config = unreal.WatermarkConfigEditor()
 
 def get_should_add_metadata_on_import():
     return watermark_config.get_editor_property("bAutoAddMetadataOnImport")

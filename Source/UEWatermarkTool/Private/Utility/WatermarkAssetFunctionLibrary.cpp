@@ -1,10 +1,6 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
-#include "WatermarkFunctionLibrary.h"
-#include "Config/WatermarkConfig.h"
-#include "Kismet/KismetMaterialLibrary.h"
-#include "Materials/MaterialParameterCollection.h"
+#include "Utility/WatermarkAssetFunctionLibrary.h"
 #include "Engine/Texture2D.h"
 #include "ImageUtils.h"
 #include "StaticMeshAttributes.h"
@@ -14,39 +10,7 @@
 #include "Slate/WidgetRenderer.h"
 #include "Sound/SoundWave.h"
 
-bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
-{
-#if WITH_EDITOR
-	return UWatermarkConfig::Get()->bEnableWatermarkUIInEditor;
-#else
-	return UWatermarkConfig::Get()->bEnableWatermarkUI;
-#endif
-}
-
-bool UWatermarkFunctionLibrary::ShouldShowWatermarkGym()
-{
-#if WITH_EDITOR
-	return UWatermarkConfig::Get()->bEnableWatermarkUIInEditor;
-#else
-	return UWatermarkConfig::Get()->bEnableWatermarkUI;
-#endif
-}
-
-void UWatermarkFunctionLibrary::SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject)
-{
-	if (!UWatermarkConfig::Get()->GymMPC.IsValid()) return;
-
-	UMaterialParameterCollection* MPC = Cast<UMaterialParameterCollection>(UWatermarkConfig::Get()->GymMPC.ResolveObject());
-	UKismetMaterialLibrary::SetScalarParameterValue(WorldContextObject, MPC, ParamName, Value);
-}
-
-void UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(UObject* WorldContextObject)
-{
-	SetGymMpcScalarValue(TEXT("IsEnabled"), ShouldShowWatermarkGym() ? 1.0f : 0.0f, WorldContextObject);
-}
-
-
-void UWatermarkFunctionLibrary::EmbedLSBWatermark(UTexture2D* Texture, const FString& Message)
+void UWatermarkAssetFunctionLibrary::EmbedLSBWatermark(UTexture2D* Texture, const FString& Message)
 {
 	if (!Texture) return;
 
@@ -80,7 +44,7 @@ void UWatermarkFunctionLibrary::EmbedLSBWatermark(UTexture2D* Texture, const FSt
 	Texture->UpdateResource();
 }
 
-FString UWatermarkFunctionLibrary::ExtractLSBWatermark(UTexture2D* Texture, int32 MessageLength)
+FString UWatermarkAssetFunctionLibrary::ExtractLSBWatermark(UTexture2D* Texture, int32 MessageLength)
 {
 	if (!Texture) return "";
 
@@ -175,7 +139,7 @@ void SetRGBFromLuminance(float Y, uint8& R, uint8& G, uint8& B)
     R = G = B = FMath::Clamp(Y, 0.0f, 255.0f);
 }
 
-void UWatermarkFunctionLibrary::EmbedDCTWatermark(UTexture2D* Texture, const FString& Message)
+void UWatermarkAssetFunctionLibrary::EmbedDCTWatermark(UTexture2D* Texture, const FString& Message)
 {
     if (!Texture) return;
 
@@ -247,7 +211,7 @@ void UWatermarkFunctionLibrary::EmbedDCTWatermark(UTexture2D* Texture, const FSt
     Texture->UpdateResource();
 }
 
-FString UWatermarkFunctionLibrary::ExtractDCTWatermark(UTexture2D* Texture, int32 MessageLength)
+FString UWatermarkAssetFunctionLibrary::ExtractDCTWatermark(UTexture2D* Texture, int32 MessageLength)
 {
     if (!Texture) return "";
 
@@ -320,7 +284,7 @@ void GeneratePNSequence(TArray<float>& OutPNSequence, int32 Length, int32 Seed)
     }
 }
 
-void UWatermarkFunctionLibrary::EmbedSpreadSpectrumWatermark(USoundWave* SoundWave, const FString& Message)
+void UWatermarkAssetFunctionLibrary::EmbedSpreadSpectrumWatermark(USoundWave* SoundWave, const FString& Message)
 {
     if (!SoundWave) return;
 
@@ -395,7 +359,7 @@ uint8 DetectBit(const TArray<int16>& AudioSamples, int32 StartIndex, const TArra
     return (Sum > 0) ? 1 : 0;
 }
 
-FString UWatermarkFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWave* SoundWave, int32 MessageLength)
+FString UWatermarkAssetFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWave* SoundWave, int32 MessageLength)
 {
     if (!SoundWave) return "";
 
@@ -451,7 +415,7 @@ FString UWatermarkFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWave* So
 
 #undef LOCTEXT_NAMESPACE
 /*
-UTexture2D* UWatermarkFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
+UTexture2D* UWatermarkAssetFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
 {
     int32 Width  = BitString.Len();
     int32 Height = 1;
@@ -489,7 +453,7 @@ UTexture2D* UWatermarkFunctionLibrary::CreateBitmaskTexture(const FString& BitSt
 
 #include "Misc/CString.h"
 
-FString UWatermarkFunctionLibrary::StringToBitString(const FString& Input)
+FString UWatermarkAssetFunctionLibrary::StringToBitString(const FString& Input)
 {
     FTCHARToUTF8 Utf8Converter(*Input);
     const uint8* Data   = reinterpret_cast<const uint8*>(Utf8Converter.Get());
@@ -511,7 +475,7 @@ FString UWatermarkFunctionLibrary::StringToBitString(const FString& Input)
     return BitString;
 }
 
-void UWatermarkFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels)
+void UWatermarkAssetFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels)
 {
     UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
     RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
@@ -527,7 +491,7 @@ void UWatermarkFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, in
     RTResource->ReadPixels(OutPixels);
 }
 
-void UWatermarkFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth,
+void UWatermarkAssetFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth,
     int32 TargetHeight, TArray<FColor>& OutPixels)
 {
     UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
@@ -546,43 +510,7 @@ void UWatermarkFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> Sl
     UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::RenderSlateWidgetToBitmap - Widget rendered to texture"));
 }
 
-
-UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded)
-{
-    bHasSucceeded = false;
-    TSoftClassPtr<UUserWidget> WatermarkClass = UWatermarkConfig::Get()->WatermarkUserWidgetClass;
-
-    /*
-    if (!WatermarkClass.IsPending())
-    {
-        UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - WatermarkUserWidgetClass is invalid"));
-        bHasSucceeded = true;
-        return nullptr;
-    }
-    */
-
-    UClass* WidgetClass = WatermarkClass.LoadSynchronous();
-    if (!WidgetClass)
-    {
-        UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - LoadSynchronous() returned nullptr"));
-        bHasSucceeded = true;
-        return nullptr;
-    }
-
-    UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem:AddUMGWatermark - Widget class loaded successfully, creating widget"));
-
-    UUserWidget* WatermarkUserWidget = CreateWidget<UUserWidget>(PC, WidgetClass);
-    if (!WatermarkUserWidget)
-    {
-        UE_LOG(LogWatermark, Error, TEXT("WatermarkSubsystem:AddUMGWatermark - CreateWidget returned nullptr"));
-        bHasSucceeded = true;
-        return nullptr;
-    }
-
-    return WatermarkUserWidget;
-}
-
-void UWatermarkFunctionLibrary::EmbedLSBOnRenderTarget(UTextureRenderTarget2D* RenderTarget, const FString& Message)
+void UWatermarkAssetFunctionLibrary::EmbedLSBOnRenderTarget(UTextureRenderTarget2D* RenderTarget, const FString& Message)
 {
     if (!RenderTarget) return;
 
@@ -624,7 +552,7 @@ void UWatermarkFunctionLibrary::EmbedLSBOnRenderTarget(UTextureRenderTarget2D* R
     UE_LOG(LogWatermark, Log, TEXT("EmbedLSBOnRenderTarget - Data embedded and saved: %s"), *Path);
 }
 
-FString UWatermarkFunctionLibrary::ExtractLSBFromRenderTarget(UTextureRenderTarget2D* RenderTarget, int32 MessageLength)
+FString UWatermarkAssetFunctionLibrary::ExtractLSBFromRenderTarget(UTextureRenderTarget2D* RenderTarget, int32 MessageLength)
 {
     if (!RenderTarget) return "";
 
@@ -664,7 +592,7 @@ FString UWatermarkFunctionLibrary::ExtractLSBFromRenderTarget(UTextureRenderTarg
     return Result;
 }
 
-void UWatermarkFunctionLibrary::EmbedWatermarkInStaticMesh(UStaticMesh* StaticMesh, const FString& NumericPattern)
+void UWatermarkAssetFunctionLibrary::EmbedWatermarkInStaticMesh(UStaticMesh* StaticMesh, const FString& NumericPattern)
 {
     if (!StaticMesh || NumericPattern.IsEmpty())
     {
@@ -720,7 +648,7 @@ void UWatermarkFunctionLibrary::EmbedWatermarkInStaticMesh(UStaticMesh* StaticMe
     UE_LOG(LogWatermark, Log, TEXT("EmbedWatermarkInStaticMesh - Watermark %s embedded"), *NumericPattern);
 }
 
-FString UWatermarkFunctionLibrary::ExtractWatermarkFromStaticMesh(UStaticMesh* StaticMesh, int32 DecimalDigits)
+FString UWatermarkAssetFunctionLibrary::ExtractWatermarkFromStaticMesh(UStaticMesh* StaticMesh, int32 DecimalDigits)
 {
     if (!StaticMesh || DecimalDigits <= 0)
     {

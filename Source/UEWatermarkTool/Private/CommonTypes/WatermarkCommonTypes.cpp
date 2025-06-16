@@ -1,0 +1,1 @@
+﻿#include "CommonTypes/WatermarkCommonTypes.h"
