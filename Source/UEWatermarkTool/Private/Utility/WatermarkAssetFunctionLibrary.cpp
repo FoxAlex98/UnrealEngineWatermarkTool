@@ -10,6 +10,104 @@
 #include "Slate/WidgetRenderer.h"
 #include "Sound/SoundWave.h"
 
+
+#include "Misc/CString.h"
+
+/*
+UTexture2D* UWatermarkAssetFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
+{
+    int32 Width  = BitString.Len();
+    int32 Height = 1;
+
+    UTexture2D* Tex = UTexture2D::CreateTransient(Width, Height, PF_R8);
+    if (!Tex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CreateBitmaskTexture: creazione della texture fallita"));
+        return nullptr;
+    }
+
+    Tex->MipGenSettings      = TMGS_NoMipmaps;
+    Tex->SRGB                = false;
+    Tex->CompressionSettings = TC_Default;
+    Tex->AddToRoot();
+    Tex->UpdateResource();
+
+    TArray<uint8> RawData;
+    RawData.AddUninitialized(Width * Height);
+    for (int32 i = 0; i < Width; ++i)
+    {
+        RawData[i] = (BitString[i] == '1') ? 0xFF : 0x00;
+    }
+
+    FTexture2DMipMap& Mip = Tex->GetPlatformData()->Mips[0];
+    void* TextureData = Mip.BulkData.Lock(LOCK_READ_WRITE);
+    FMemory::Memcpy(TextureData, RawData.GetData(), RawData.Num() * sizeof(uint8));
+    Mip.BulkData.Unlock();
+
+    Tex->UpdateResource();
+
+    return Tex;
+}
+*/
+
+FString UWatermarkAssetFunctionLibrary::StringToBitString(const FString& Input)
+{
+    FTCHARToUTF8 Utf8Converter(*Input);
+    const uint8* Data   = reinterpret_cast<const uint8*>(Utf8Converter.Get());
+    int32       Length  = Utf8Converter.Length();
+
+    FString BitString;
+    BitString.Reserve(Length * 8);
+
+    for (int32 i = 0; i < Length; ++i)
+    {
+        uint8 Byte = Data[i];
+        for (int bit = 7; bit >= 0; --bit)
+        {
+            bool bIsOne = ((Byte >> bit) & 0x1) != 0;
+            BitString.AppendChar(bIsOne ? '1' : '0');
+        }
+    }
+
+    return BitString;
+}
+
+void UWatermarkAssetFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels)
+{
+    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
+    RenderTarget->ClearColor = FLinearColor::Transparent;
+    RenderTarget->UpdateResourceImmediate();
+
+    FWidgetRenderer Renderer(true, false);
+    Renderer.DrawWidget(RenderTarget, Widget->TakeWidget(), FVector2D(TargetWidth, TargetHeight), 0.f);
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+    OutPixels.SetNum(TargetWidth * TargetHeight);
+    RTResource->ReadPixels(OutPixels);
+}
+
+void UWatermarkAssetFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth,
+    int32 TargetHeight, TArray<FColor>& OutPixels)
+{
+    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
+    RenderTarget->ClearColor = FLinearColor(0, 0, 0, 0);
+    RenderTarget->UpdateResourceImmediate();
+
+    FWidgetRenderer Renderer(true);
+    Renderer.DrawWidget(RenderTarget, SlateWidget, FVector2D(TargetWidth, TargetHeight), 0.f);
+
+    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
+
+    OutPixels.SetNum(TargetWidth * TargetHeight);
+    RTResource->ReadPixels(OutPixels);
+
+    UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::RenderSlateWidgetToBitmap - Widget rendered to texture"));
+}
+
+#if WITH_EDITOR
 void UWatermarkAssetFunctionLibrary::EmbedLSBWatermark(UTexture2D* Texture, const FString& Message)
 {
 	if (!Texture) return;
@@ -414,101 +512,6 @@ FString UWatermarkAssetFunctionLibrary::ExtractSpreadSpectrumWatermark(USoundWav
 }
 
 #undef LOCTEXT_NAMESPACE
-/*
-UTexture2D* UWatermarkAssetFunctionLibrary::CreateBitmaskTexture(const FString& BitString)
-{
-    int32 Width  = BitString.Len();
-    int32 Height = 1;
-
-    UTexture2D* Tex = UTexture2D::CreateTransient(Width, Height, PF_R8);
-    if (!Tex)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("CreateBitmaskTexture: creazione della texture fallita"));
-        return nullptr;
-    }
-
-    Tex->MipGenSettings      = TMGS_NoMipmaps;
-    Tex->SRGB                = false;
-    Tex->CompressionSettings = TC_Default;
-    Tex->AddToRoot();
-    Tex->UpdateResource();
-
-    TArray<uint8> RawData;
-    RawData.AddUninitialized(Width * Height);
-    for (int32 i = 0; i < Width; ++i)
-    {
-        RawData[i] = (BitString[i] == '1') ? 0xFF : 0x00;
-    }
-
-    FTexture2DMipMap& Mip = Tex->GetPlatformData()->Mips[0];
-    void* TextureData = Mip.BulkData.Lock(LOCK_READ_WRITE);
-    FMemory::Memcpy(TextureData, RawData.GetData(), RawData.Num() * sizeof(uint8));
-    Mip.BulkData.Unlock();
-
-    Tex->UpdateResource();
-
-    return Tex;
-}
-*/
-
-#include "Misc/CString.h"
-
-FString UWatermarkAssetFunctionLibrary::StringToBitString(const FString& Input)
-{
-    FTCHARToUTF8 Utf8Converter(*Input);
-    const uint8* Data   = reinterpret_cast<const uint8*>(Utf8Converter.Get());
-    int32       Length  = Utf8Converter.Length();
-
-    FString BitString;
-    BitString.Reserve(Length * 8);
-
-    for (int32 i = 0; i < Length; ++i)
-    {
-        uint8 Byte = Data[i];
-        for (int bit = 7; bit >= 0; --bit)
-        {
-            bool bIsOne = ((Byte >> bit) & 0x1) != 0;
-            BitString.AppendChar(bIsOne ? '1' : '0');
-        }
-    }
-
-    return BitString;
-}
-
-void UWatermarkAssetFunctionLibrary::RenderUserWidgetToBitmap(UUserWidget* Widget, int32 TargetWidth, int32 TargetHeight, TArray<FColor>& OutPixels)
-{
-    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
-    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
-    RenderTarget->ClearColor = FLinearColor::Transparent;
-    RenderTarget->UpdateResourceImmediate();
-
-    FWidgetRenderer Renderer(true, false);
-    Renderer.DrawWidget(RenderTarget, Widget->TakeWidget(), FVector2D(TargetWidth, TargetHeight), 0.f);
-
-    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
-
-    OutPixels.SetNum(TargetWidth * TargetHeight);
-    RTResource->ReadPixels(OutPixels);
-}
-
-void UWatermarkAssetFunctionLibrary::RenderSlateWidgetToBitmap(TSharedRef<SWidget> SlateWidget, int32 TargetWidth,
-    int32 TargetHeight, TArray<FColor>& OutPixels)
-{
-    UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
-    RenderTarget->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
-    RenderTarget->ClearColor = FLinearColor(0, 0, 0, 0);
-    RenderTarget->UpdateResourceImmediate();
-
-    FWidgetRenderer Renderer(true);
-    Renderer.DrawWidget(RenderTarget, SlateWidget, FVector2D(TargetWidth, TargetHeight), 0.f);
-
-    FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
-
-    OutPixels.SetNum(TargetWidth * TargetHeight);
-    RTResource->ReadPixels(OutPixels);
-
-    UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::RenderSlateWidgetToBitmap - Widget rendered to texture"));
-}
 
 void UWatermarkAssetFunctionLibrary::EmbedLSBOnRenderTarget(UTextureRenderTarget2D* RenderTarget, const FString& Message)
 {
@@ -705,3 +708,4 @@ FString UWatermarkAssetFunctionLibrary::ExtractWatermarkFromStaticMesh(UStaticMe
     UE_LOG(LogWatermark, Log, TEXT("Extracted watermark: %s"), *Out);
     return Out;
 }
+#endif
