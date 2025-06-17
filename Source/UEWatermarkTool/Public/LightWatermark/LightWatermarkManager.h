@@ -17,9 +17,7 @@ class UEWATERMARKTOOL_API ALightWatermarkManager : public AActor
 public:
 	ALightWatermarkManager();
 
-#if WITH_EDITOR
 	virtual void OnConstruction(const FTransform& Transform) override;
-#endif
 
 protected:
 	virtual void BeginPlay() override;
@@ -31,10 +29,10 @@ protected:
 	virtual void Destroyed() override;
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category="Watermark Light")
+	UPROPERTY(VisibleDefaultsOnly, Category="Watermark Light")
 	UBoxComponent* BoxComponent;
 
-	UPROPERTY(EditAnywhere, Category="Watermark Light|Config")
+	UPROPERTY(EditDefaultsOnly, Category="Watermark Light|Config")
 	TSubclassOf<ALightWatermarkActor> LightClass;
 
 	UPROPERTY(EditAnywhere, Category="Watermark Light|Config")

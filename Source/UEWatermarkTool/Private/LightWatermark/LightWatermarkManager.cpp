@@ -15,7 +15,6 @@ ALightWatermarkManager::ALightWatermarkManager()
 	BoxComponent->SetHiddenInGame(true);
 }
 
-#if WITH_EDITOR
 void ALightWatermarkManager::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
@@ -26,7 +25,6 @@ void ALightWatermarkManager::OnConstruction(const FTransform& Transform)
 		SpawnLights();
 	}
 }
-#endif
 
 void ALightWatermarkManager::BeginPlay()
 {
@@ -118,9 +116,13 @@ void ALightWatermarkManager::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	//BoxExtent and RelativeScale3D are inaccessible in BoxComponent
+	static const FName LightsRotatorName = GET_MEMBER_NAME_CHECKED(ALightWatermarkManager, SpawnedLightsRotator);
+
 	if (PropertyChangedEvent.Property &&
 	   (PropertyChangedEvent.Property->GetFName() == FName(L"BoxExtent") ||
-		PropertyChangedEvent.Property->GetFName() == FName(L"RelativeScale3D")))
+		PropertyChangedEvent.Property->GetFName() == FName(L"RelativeScale3D") ||
+		PropertyChangedEvent.Property->GetFName() == LightsRotatorName))
 	{
 		ClearSpawnedLights();
 		SpawnLights();

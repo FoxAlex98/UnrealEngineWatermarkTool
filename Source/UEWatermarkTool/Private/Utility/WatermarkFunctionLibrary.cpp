@@ -11,22 +11,14 @@
 
 bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
 {
-#if WITH_EDITOR
-	return UWatermarkConfig::Get()->bEnableWatermarkUIInEditor;
-#else
-	return UWatermarkConfig::Get()->bEnableWatermarkUI;
-#endif
+	return UWatermarkConfig::Get()->EnableUIWatermark.ShouldBeEnabled();
 }
 
-bool UWatermarkFunctionLibrary::ShouldShowWatermarkGym()
+bool UWatermarkFunctionLibrary::ShouldShowLightWatermark()
 {
-#if WITH_EDITOR
-	return UWatermarkConfig::Get()->bEnableWatermarkUIInEditor;
-#else
-	return UWatermarkConfig::Get()->bEnableWatermarkUI;
-#endif
+	return UWatermarkConfig::Get()->EnableLightWatermark.ShouldBeEnabled();
 }
-
+/*
 void UWatermarkFunctionLibrary::SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject)
 {
 	if (!UWatermarkConfig::Get()->GymMPC.IsValid()) return;
@@ -34,11 +26,11 @@ void UWatermarkFunctionLibrary::SetGymMpcScalarValue(FName ParamName, float Valu
 	UMaterialParameterCollection* MPC = Cast<UMaterialParameterCollection>(UWatermarkConfig::Get()->GymMPC.ResolveObject());
 	UKismetMaterialLibrary::SetScalarParameterValue(WorldContextObject, MPC, ParamName, Value);
 }
-
 void UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(UObject* WorldContextObject)
 {
-	SetGymMpcScalarValue(TEXT("IsEnabled"), ShouldShowWatermarkGym() ? 1.0f : 0.0f, WorldContextObject);
+	SetGymMpcScalarValue(TEXT("IsEnabled"), ShouldShowLightWatermark() ? 1.0f : 0.0f, WorldContextObject);
 }
+*/
 
 UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded)
 {

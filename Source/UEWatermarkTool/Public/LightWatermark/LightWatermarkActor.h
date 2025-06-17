@@ -19,7 +19,7 @@ public:
 
 protected:
 
-	UPROPERTY(EditAnywhere, Category = "Watermark Light|Config")
+	UPROPERTY(EditDefaultsOnly, Category = "Watermark Light|Config")
 	FComponentReference LightComponentRef;
 
 	UPROPERTY(EditDefaultsOnly, Category="Watermark Light|Config")

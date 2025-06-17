@@ -29,6 +29,27 @@ enum class EScreenshotWatermarkMode : uint8
 };
 
 USTRUCT(BlueprintType)
+struct FWatermarkEnableStatus
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DisplayName="Enable In Editor")
+	bool bEnableInEditor = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, DisplayName="Enable In Build")
+	bool bEnableInBuild = false;
+
+	bool ShouldBeEnabled() const
+	{
+#if WITH_EDITOR
+		return bEnableInEditor;
+#else
+		return bEnableInBuild;
+#endif
+	}
+};
+
+USTRUCT(BlueprintType)
 struct FWatermarkSlateWidgetData
 {
 	GENERATED_BODY()

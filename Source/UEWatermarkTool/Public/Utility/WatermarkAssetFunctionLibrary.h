@@ -56,5 +56,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Watermark|StaticMesh")
 	static FString ExtractWatermarkFromStaticMesh(UStaticMesh* StaticMesh, int32 DecimalDigits);
+
 #endif
+	
+	UFUNCTION(BlueprintCallable, Category="Watermark|Texture")
+	static void EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
+	UFUNCTION(BlueprintCallable, Category="Watermark|Texture")
+	static UTexture2D* ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static UTexture2D* BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha);
+
 };

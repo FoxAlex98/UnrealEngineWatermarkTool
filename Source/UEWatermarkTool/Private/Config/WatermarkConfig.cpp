@@ -9,8 +9,8 @@ void UWatermarkConfig::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 
 
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWatermarkConfig, bEnableWatermarkGymInEditor)) {
-		UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWatermarkConfig, EnableLightWatermark)) {
+		//UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
 	}
 }
 

@@ -709,3 +709,594 @@ FString UWatermarkAssetFunctionLibrary::ExtractWatermarkFromStaticMesh(UStaticMe
     return Out;
 }
 #endif
+
+/*
+void UWatermarkAssetFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+{
+	if (!HostTexture || !WatermarkTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Invalid textures"));
+		return;
+	}
+
+	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+	FTexture2DMipMap& WatermarkMip = WatermarkTexture->GetPlatformData()->Mips[0];
+
+	if (HostMip.SizeX != WatermarkMip.SizeX || HostMip.SizeY != WatermarkMip.SizeY)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Texture sizes do not match"));
+		return;
+	}
+
+	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+	uint8* WatermarkPixels = static_cast<uint8*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+
+	const int32 PixelCount = HostMip.SizeX * HostMip.SizeY;
+
+	for (int32 i = 0; i < PixelCount; ++i)
+	{
+		uint8 f = HostPixels[i];
+		uint8 w = WatermarkPixels[i];
+
+		uint8 fw = 4 * (f / 4) + (w / 64); // embed: quantization + scaled watermark
+		HostPixels[i] = fw;
+	}
+
+	WatermarkMip.BulkData.Unlock();
+	HostMip.BulkData.Unlock();
+
+	HostTexture->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Watermark embedded successfully"));
+}
+
+UTexture2D* UWatermarkAssetFunctionLibrary::ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture)
+{
+	if (!WatermarkedTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Invalid texture"));
+		return nullptr;
+	}
+
+	FTexture2DMipMap& Mip = WatermarkedTexture->GetPlatformData()->Mips[0];
+	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+
+	const int32 Width = Mip.SizeX;
+	const int32 Height = Mip.SizeY;
+	const int32 PixelCount = Width * Height;
+
+	UTexture2D* OutTexture = UTexture2D::CreateTransient(Width, Height, PF_G8);
+	if (!OutTexture)
+	{
+		Mip.BulkData.Unlock();
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Failed to create output texture"));
+		return nullptr;
+	}
+	OutTexture->MipGenSettings = TMGS_NoMipmaps;
+	OutTexture->SRGB = false;
+	OutTexture->CompressionSettings = TC_Grayscale;
+	OutTexture->UpdateResource();
+
+	TArray<uint8> OutData;
+	OutData.AddUninitialized(PixelCount);
+
+	for (int32 i = 0; i < PixelCount; ++i)
+	{
+		uint8 fw = Pixels[i];
+		uint8 w = (fw % 4) * 64; // inverse operation: (fw mod 4) * 64
+		OutData[i] = w;
+	}
+
+	Mip.BulkData.Unlock();
+
+	FTexture2DMipMap& OutMip = OutTexture->GetPlatformData()->Mips[0];
+	void* DestData = OutMip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(DestData, OutData.GetData(), PixelCount);
+	OutMip.BulkData.Unlock();
+
+	OutTexture->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Watermark extracted successfully"));
+
+	return OutTexture;
+}
+*/
+/*
+void UWatermarkAssetFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+{
+	if (!HostTexture || !WatermarkTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Invalid textures"));
+		return;
+	}
+
+	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+	FTexture2DMipMap& WatermarkMip = WatermarkTexture->GetPlatformData()->Mips[0];
+
+	const int32 HostWidth = HostMip.SizeX;
+	const int32 HostHeight = HostMip.SizeY;
+
+	const int32 WmWidth = WatermarkMip.SizeX;
+	const int32 WmHeight = WatermarkMip.SizeY;
+
+	TArray<uint8> ResizedWmData;
+	if (WmWidth > HostWidth || WmHeight > HostHeight)
+	{
+		TArray<FColor> SrcColors;
+		SrcColors.SetNum(WmWidth * WmHeight);
+
+		FColor* WmSrc = static_cast<FColor*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		FMemory::Memcpy(SrcColors.GetData(), WmSrc, WmWidth * WmHeight * sizeof(FColor));
+		WatermarkMip.BulkData.Unlock();
+
+		const int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
+		const int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
+
+		TArray<FColor> ResizedColors;
+		FImageUtils::ImageResize(WmWidth, WmHeight, SrcColors, TargetWidth, TargetHeight, ResizedColors, true);
+
+		ResizedWmData.SetNum(TargetWidth * TargetHeight);
+		for (int32 i = 0; i < ResizedColors.Num(); ++i)
+		{
+			ResizedWmData[i] = ResizedColors[i].R;
+		}
+	}
+	else
+	{
+		uint8* WmPixels = static_cast<uint8*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		ResizedWmData.SetNum(WmWidth * WmHeight);
+		FMemory::Memcpy(ResizedWmData.GetData(), WmPixels, WmWidth * WmHeight);
+		WatermarkMip.BulkData.Unlock();
+	}
+
+	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+
+	const int32 StartX = HostWidth - (WmWidth > HostWidth ? HostWidth : WmWidth);
+	const int32 StartY = HostHeight - (WmHeight > HostHeight ? HostHeight : WmHeight);
+
+	int32 WmAppliedWidth = FMath::Min(WmWidth, HostWidth);
+	int32 WmAppliedHeight = FMath::Min(WmHeight, HostHeight);
+
+	for (int32 y = 0; y < WmAppliedHeight; ++y)
+	{
+		for (int32 x = 0; x < WmAppliedWidth; ++x)
+		{
+			const int32 HostIdx = (StartY + y) * HostWidth + (StartX + x);
+			const int32 WmIdx = y * WmAppliedWidth + x;
+
+			uint8 f = HostPixels[HostIdx];
+			uint8 w = ResizedWmData[WmIdx];
+			uint8 fw = 4 * (f / 4) + (w / 64);
+
+			HostPixels[HostIdx] = fw;
+		}
+	}
+
+	HostMip.BulkData.Unlock();
+	HostTexture->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Embedded at [%d x %d] bottom-right"), WmAppliedWidth, WmAppliedHeight);
+}
+UTexture2D* UWatermarkAssetFunctionLibrary::ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture)
+{
+	if (!WatermarkedTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Invalid texture"));
+		return nullptr;
+	}
+
+	constexpr int32 WmMaxWidth = 256;
+	constexpr int32 WmMaxHeight = 256;
+
+	FTexture2DMipMap& Mip = WatermarkedTexture->GetPlatformData()->Mips[0];
+	const int32 Width = Mip.SizeX;
+	const int32 Height = Mip.SizeY;
+	const int32 StartX = Width - WmMaxWidth;
+	const int32 StartY = Height - WmMaxHeight;
+
+	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+
+	const int32 FinalWidth = FMath::Min(WmMaxWidth, Width);
+	const int32 FinalHeight = FMath::Min(WmMaxHeight, Height);
+	TArray<uint8> OutData;
+	OutData.SetNum(FinalWidth * FinalHeight);
+
+	for (int32 y = 0; y < FinalHeight; ++y)
+	{
+		for (int32 x = 0; x < FinalWidth; ++x)
+		{
+			const int32 SrcIdx = (StartY + y) * Width + (StartX + x);
+			const int32 DstIdx = y * FinalWidth + x;
+			uint8 fw = Pixels[SrcIdx];
+			uint8 w = (fw % 4) * 64;
+			OutData[DstIdx] = w;
+		}
+	}
+
+	Mip.BulkData.Unlock();
+
+	UTexture2D* OutTex = UTexture2D::CreateTransient(FinalWidth, FinalHeight, PF_G8);
+	if (!OutTex)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Could not create result texture"));
+		return nullptr;
+	}
+	OutTex->MipGenSettings = TMGS_NoMipmaps;
+	OutTex->SRGB = false;
+	OutTex->CompressionSettings = TC_Grayscale;
+	OutTex->UpdateResource();
+
+	FTexture2DMipMap& OutMip = OutTex->GetPlatformData()->Mips[0];
+	void* Dest = OutMip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(Dest, OutData.GetData(), OutData.Num());
+	OutMip.BulkData.Unlock();
+
+	OutTex->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Extracted [%d x %d] from bottom-right"), FinalWidth, FinalHeight);
+
+	return OutTex;
+}
+*/
+
+/*
+void UWatermarkAssetFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+{
+	if (!HostTexture || !WatermarkTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Invalid textures"));
+		return;
+	}
+
+	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+	FTexture2DMipMap& WatermarkMip = WatermarkTexture->GetPlatformData()->Mips[0];
+
+	const int32 HostWidth = HostMip.SizeX;
+	const int32 HostHeight = HostMip.SizeY;
+
+	const int32 WmWidth = WatermarkMip.SizeX;
+	const int32 WmHeight = WatermarkMip.SizeY;
+
+	TArray<uint8> ResizedWmData;
+	if (WmWidth > HostWidth || WmHeight > HostHeight)
+	{
+		TArray<FColor> SrcColors;
+		SrcColors.SetNum(WmWidth * WmHeight);
+
+		FColor* WmSrc = static_cast<FColor*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		FMemory::Memcpy(SrcColors.GetData(), WmSrc, WmWidth * WmHeight * sizeof(FColor));
+		WatermarkMip.BulkData.Unlock();
+
+		const int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
+		const int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
+
+		TArray<FColor> ResizedColors;
+		FImageUtils::ImageResize(WmWidth, WmHeight, SrcColors, TargetWidth, TargetHeight, ResizedColors, true);
+
+		ResizedWmData.SetNum(TargetWidth * TargetHeight);
+		for (int32 i = 0; i < ResizedColors.Num(); ++i)
+		{
+			ResizedWmData[i] = ResizedColors[i].R;
+		}
+	}
+	else
+	{
+		uint8* WmPixels = static_cast<uint8*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		ResizedWmData.SetNum(WmWidth * WmHeight);
+		FMemory::Memcpy(ResizedWmData.GetData(), WmPixels, WmWidth * WmHeight);
+		WatermarkMip.BulkData.Unlock();
+	}
+
+	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+
+	const int32 StartX = HostWidth - (WmWidth > HostWidth ? HostWidth : WmWidth);
+	const int32 StartY = HostHeight - (WmHeight > HostHeight ? HostHeight : WmHeight);
+
+	const int32 WmAppliedWidth = FMath::Min(WmWidth, HostWidth);
+	const int32 WmAppliedHeight = FMath::Min(WmHeight, HostHeight);
+
+	for (int32 y = 0; y < WmAppliedHeight; ++y)
+	{
+		for (int32 x = 0; x < WmAppliedWidth; ++x)
+		{
+			const int32 HostIdx = (StartY + y) * HostWidth + (StartX + x);
+			const int32 WmIdx = y * WmAppliedWidth + x;
+
+			uint8 f = HostPixels[HostIdx];
+			uint8 w = ResizedWmData[WmIdx];
+
+			uint8 scaledW = FMath::Clamp(w >> 6, 0, 3); // 0..255 → 0..3
+			uint8 fw = 4 * (f / 4) + scaledW;
+
+			HostPixels[HostIdx] = fw;
+		}
+	}
+
+	HostMip.BulkData.Unlock();
+	HostTexture->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Watermark embedded [%d x %d] at bottom-right"), WmAppliedWidth, WmAppliedHeight);
+}
+
+UTexture2D* UWatermarkAssetFunctionLibrary::ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture)
+{
+	if (!WatermarkedTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Invalid texture"));
+		return nullptr;
+	}
+
+	constexpr int32 WmMaxWidth = 256;
+	constexpr int32 WmMaxHeight = 256;
+
+	FTexture2DMipMap& Mip = WatermarkedTexture->GetPlatformData()->Mips[0];
+	const int32 Width = Mip.SizeX;
+	const int32 Height = Mip.SizeY;
+
+	const int32 FinalWidth = FMath::Min(WmMaxWidth, Width);
+	const int32 FinalHeight = FMath::Min(WmMaxHeight, Height);
+
+	const int32 StartX = Width - FinalWidth;
+	const int32 StartY = Height - FinalHeight;
+
+	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+
+	TArray<uint8> OutData;
+	OutData.SetNum(FinalWidth * FinalHeight);
+
+	for (int32 y = 0; y < FinalHeight; ++y)
+	{
+		for (int32 x = 0; x < FinalWidth; ++x)
+		{
+			const int32 SrcIdx = (StartY + y) * Width + (StartX + x);
+			const int32 DstIdx = y * FinalWidth + x;
+
+			uint8 fw = Pixels[SrcIdx];
+			uint8 w = (fw & 0x03) * 85; // 0..3 → 0,85,170,255
+
+			OutData[DstIdx] = w;
+		}
+	}
+
+	Mip.BulkData.Unlock();
+
+	UTexture2D* OutTex = UTexture2D::CreateTransient(FinalWidth, FinalHeight, PF_G8);
+	if (!OutTex)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Could not create result texture"));
+		return nullptr;
+	}
+	OutTex->MipGenSettings = TMGS_NoMipmaps;
+	OutTex->SRGB = false;
+	OutTex->CompressionSettings = TC_Grayscale;
+	OutTex->UpdateResource();
+
+	FTexture2DMipMap& OutMip = OutTex->GetPlatformData()->Mips[0];
+	void* Dest = OutMip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(Dest, OutData.GetData(), OutData.Num());
+	OutMip.BulkData.Unlock();
+
+	OutTex->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Watermark extracted [%d x %d] from bottom-right"), FinalWidth, FinalHeight);
+
+	return OutTex;
+}
+*/
+
+void UWatermarkAssetFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+{
+	if (!HostTexture || !WatermarkTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Invalid textures"));
+		return;
+	}
+
+	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+	FTexture2DMipMap& WatermarkMip = WatermarkTexture->GetPlatformData()->Mips[0];
+
+	const int32 HostWidth = HostMip.SizeX;
+	const int32 HostHeight = HostMip.SizeY;
+
+	const int32 WmWidth = WatermarkMip.SizeX;
+	const int32 WmHeight = WatermarkMip.SizeY;
+
+	TArray<uint8> ResizedWmData;
+	if (WmWidth > HostWidth || WmHeight > HostHeight)
+	{
+		TArray<FColor> SrcColors;
+		SrcColors.SetNum(WmWidth * WmHeight);
+
+		FColor* WmSrc = static_cast<FColor*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		FMemory::Memcpy(SrcColors.GetData(), WmSrc, WmWidth * WmHeight * sizeof(FColor));
+		WatermarkMip.BulkData.Unlock();
+
+		const int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
+		const int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
+
+		TArray<FColor> ResizedColors;
+		FImageUtils::ImageResize(WmWidth, WmHeight, SrcColors, TargetWidth, TargetHeight, ResizedColors, true);
+
+		ResizedWmData.SetNum(TargetWidth * TargetHeight);
+		for (int32 i = 0; i < ResizedColors.Num(); ++i)
+		{
+			ResizedWmData[i] = ResizedColors[i].R;
+		}
+	}
+	else
+	{
+		uint8* WmPixels = static_cast<uint8*>(WatermarkMip.BulkData.Lock(LOCK_READ_ONLY));
+		ResizedWmData.SetNum(WmWidth * WmHeight);
+		FMemory::Memcpy(ResizedWmData.GetData(), WmPixels, WmWidth * WmHeight);
+		WatermarkMip.BulkData.Unlock();
+	}
+
+	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+
+	const int32 StartX = HostWidth - FMath::Min(WmWidth, HostWidth);
+	const int32 StartY = HostHeight - FMath::Min(WmHeight, HostHeight);
+
+	const int32 WmAppliedWidth = FMath::Min(WmWidth, HostWidth);
+	const int32 WmAppliedHeight = FMath::Min(WmHeight, HostHeight);
+
+	for (int32 y = 0; y < WmAppliedHeight; ++y)
+	{
+		for (int32 x = 0; x < WmAppliedWidth; ++x)
+		{
+			const int32 HostIdx = (StartY + y) * HostWidth + (StartX + x);
+			const int32 WmIdx = y * WmAppliedWidth + x;
+
+			uint8 f = HostPixels[HostIdx];
+			uint8 w = ResizedWmData[WmIdx];
+
+			uint8 scaledW = FMath::Clamp(w >> 5, 0, 7); // 3 bit: 0–7
+			uint8 fw = 8 * (f / 8) + scaledW;
+
+			HostPixels[HostIdx] = fw;
+		}
+	}
+
+	HostMip.BulkData.Unlock();
+	HostTexture->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::EmbedQuantizedWatermark - Watermark embedded [%d x %d] using 3-bit LSB"), WmAppliedWidth, WmAppliedHeight);
+}
+
+UTexture2D* UWatermarkAssetFunctionLibrary::ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture)
+{
+	if (!WatermarkedTexture)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Invalid texture"));
+		return nullptr;
+	}
+
+	constexpr int32 WmMaxWidth = 256;
+	constexpr int32 WmMaxHeight = 256;
+
+	FTexture2DMipMap& Mip = WatermarkedTexture->GetPlatformData()->Mips[0];
+	const int32 Width = Mip.SizeX;
+	const int32 Height = Mip.SizeY;
+
+	const int32 FinalWidth = FMath::Min(WmMaxWidth, Width);
+	const int32 FinalHeight = FMath::Min(WmMaxHeight, Height);
+
+	const int32 StartX = Width - FinalWidth;
+	const int32 StartY = Height - FinalHeight;
+
+	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+
+	TArray<uint8> OutData;
+	OutData.SetNum(FinalWidth * FinalHeight);
+
+	for (int32 y = 0; y < FinalHeight; ++y)
+	{
+		for (int32 x = 0; x < FinalWidth; ++x)
+		{
+			const int32 SrcIdx = (StartY + y) * Width + (StartX + x);
+			const int32 DstIdx = y * FinalWidth + x;
+
+			uint8 fw = Pixels[SrcIdx];
+			uint8 w = (fw & 0x07) * 36; // 0..7 → 0, 36, 72, ..., 252
+
+			OutData[DstIdx] = w;
+		}
+	}
+
+	Mip.BulkData.Unlock();
+
+	UTexture2D* OutTex = UTexture2D::CreateTransient(FinalWidth, FinalHeight, PF_G8);
+	if (!OutTex)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Could not create result texture"));
+		return nullptr;
+	}
+	OutTex->MipGenSettings = TMGS_NoMipmaps;
+	OutTex->SRGB = false;
+	OutTex->CompressionSettings = TC_Grayscale;
+	OutTex->UpdateResource();
+
+	FTexture2DMipMap& OutMip = OutTex->GetPlatformData()->Mips[0];
+	void* Dest = OutMip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(Dest, OutData.GetData(), OutData.Num());
+	OutMip.BulkData.Unlock();
+
+	OutTex->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkFunctionLibrary::ExtractQuantizedWatermark - Extracted watermark using 3-bit LSB [%d x %d]"), FinalWidth, FinalHeight);
+
+	return OutTex;
+}
+
+UTexture2D* UWatermarkAssetFunctionLibrary::BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha)
+{
+	if (!Base || !Overlay || Alpha < 0.f || Alpha > 1.f)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("BlendTextures - Invalid input"));
+		return nullptr;
+	}
+
+	FTexture2DMipMap& BaseMip = Base->GetPlatformData()->Mips[0];
+	FTexture2DMipMap& OverlayMip = Overlay->GetPlatformData()->Mips[0];
+
+	const int32 Width = BaseMip.SizeX;
+	const int32 Height = BaseMip.SizeY;
+
+	TArray<FColor> BaseColors;
+	BaseColors.SetNum(Width * Height);
+
+	FColor* BaseSrc = static_cast<FColor*>(BaseMip.BulkData.Lock(LOCK_READ_ONLY));
+	FMemory::Memcpy(BaseColors.GetData(), BaseSrc, Width * Height * sizeof(FColor));
+	BaseMip.BulkData.Unlock();
+
+	TArray<FColor> OverlayColors;
+	if (OverlayMip.SizeX != Width || OverlayMip.SizeY != Height)
+	{
+		TArray<FColor> SrcColors;
+		SrcColors.SetNum(OverlayMip.SizeX * OverlayMip.SizeY);
+
+		FColor* OverlaySrc = static_cast<FColor*>(OverlayMip.BulkData.Lock(LOCK_READ_ONLY));
+		FMemory::Memcpy(SrcColors.GetData(), OverlaySrc, SrcColors.Num() * sizeof(FColor));
+		OverlayMip.BulkData.Unlock();
+
+		FImageUtils::ImageResize(OverlayMip.SizeX, OverlayMip.SizeY, SrcColors, Width, Height, OverlayColors, true);
+	}
+	else
+	{
+		FColor* OverlaySrc = static_cast<FColor*>(OverlayMip.BulkData.Lock(LOCK_READ_ONLY));
+		OverlayColors.SetNum(Width * Height);
+		FMemory::Memcpy(OverlayColors.GetData(), OverlaySrc, Width * Height * sizeof(FColor));
+		OverlayMip.BulkData.Unlock();
+	}
+
+	TArray<FColor> ResultColors;
+	ResultColors.SetNum(Width * Height);
+
+	for (int32 i = 0; i < Width * Height; ++i)
+	{
+		const FColor& A = BaseColors[i];
+		const FColor& B = OverlayColors[i];
+
+		uint8 R = FMath::Lerp(A.R, B.R, Alpha);
+		uint8 G = FMath::Lerp(A.G, B.G, Alpha);
+		uint8 Bc = FMath::Lerp(A.B, B.B, Alpha);
+
+		ResultColors[i] = FColor(R, G, Bc, 255);
+	}
+
+	UTexture2D* OutTex = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+	OutTex->MipGenSettings = TMGS_NoMipmaps;
+	OutTex->SRGB = true;
+	OutTex->CompressionSettings = TC_Default;
+	OutTex->UpdateResource();
+
+	FTexture2DMipMap& OutMip = OutTex->GetPlatformData()->Mips[0];
+	void* Dest = OutMip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(Dest, ResultColors.GetData(), ResultColors.Num() * sizeof(FColor));
+	OutMip.BulkData.Unlock();
+
+	OutTex->UpdateResource();
+
+	UE_LOG(LogWatermark, Log, TEXT("BlendTextures - Created blended texture at alpha %.2f"), Alpha);
+
+	return OutTex;
+}

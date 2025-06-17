@@ -16,11 +16,8 @@ public:
 	virtual FName GetContainerName() const override { return TEXT("Project"); }
 	virtual FName GetSectionName() const override { return TEXT("Watermark Config"); }
 
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable In Build")
-	bool bEnableWatermarkUI = false;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable In Editor")
-	bool bEnableWatermarkUIInEditor = false;
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Enable UI Watermark", meta=(ShowOnlyInnerProperties))
+	FWatermarkEnableStatus EnableUIWatermark;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Widget UI Watermark")
 	EWidgetWatermarkType WidgetWatermarkType = EWidgetWatermarkType::SlateWatermark;
@@ -35,17 +32,16 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Slate UI Watermark", meta = (TitleProperty = "Name",
 			EditCondition = "WidgetWatermarkType == EWidgetWatermarkType::SlateWatermark", EditConditionHides))
 	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Material Watermark", DisplayName="Enable In Build")
-	bool bEnableWatermarkGym = false;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Material Watermark", DisplayName="Enable In Editor")
-	bool bEnableWatermarkGymInEditor = false;
-	
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Light Watermark", DisplayName="Enable Light Watermark", meta=(ShowOnlyInnerProperties))
+	FWatermarkEnableStatus EnableLightWatermark;
+
+	/*
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Material Watermark",
 		DisplayName="Gym Watermark Material Parameter Collection",
 		meta=(AllowedClasses="/Script/Engine.MaterialParameterCollection"))
 	FSoftObjectPath GymMPC = nullptr;
+	*/
 	
 	UPROPERTY(EditAnywhere, config, Category = "Watermark")
 	EScreenshotWatermarkMode WatermarkMode = EScreenshotWatermarkMode::None;

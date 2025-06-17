@@ -273,7 +273,7 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 	AddWatermarkToViewport();
 
 	//Watermark Gym
-	UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
+	//UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
 }
 
 void UWatermarkSubsystem::OnGameEnd(UGameInstance* GameInstance)
