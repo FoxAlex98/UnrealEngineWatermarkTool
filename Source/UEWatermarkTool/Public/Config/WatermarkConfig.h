@@ -2,6 +2,7 @@
 
 #include "CommonTypes/WatermarkCommonTypes.h"
 #include "Engine/DeveloperSettings.h"
+#include "GameVersion/GameVersionFunctionLibrary.h"
 #include "WatermarkConfig.generated.h"
 
 UCLASS(Config = Game, defaultconfig, BlueprintType)
@@ -35,6 +36,24 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Light Watermark", DisplayName="Enable Light Watermark", meta=(ShowOnlyInnerProperties))
 	FWatermarkEnableStatus EnableLightWatermark;
+	
+	UPROPERTY(Config, EditAnywhere, Category="Build ID", meta=(GetOptions="GetAvailableBuildIdTokens"))
+	TArray<FName> SelectedBuildIdTokens;
+
+	UPROPERTY(Config, EditAnywhere, Category="Build ID", meta=(ToolTip="Text to insert between tokens"))
+	FString BuildIdSeparator = TEXT("-");
+
+	UPROPERTY(VisibleAnywhere, Transient, Category="Build ID", meta=(DisplayName="Build ID Preview"))
+	FString BuildIdPreview;
+
+	// Build ID Formatter - visible in Project Settings
+	UPROPERTY(Config, EditAnywhere, Category="Build ID", meta=(DisplayName="Build ID Format", ToolTip="Use placeholders like {Version}, {Changelist}, {Date}, {Engine}"))
+	FString BuildIdFormat = TEXT("{Version}-{Changelist}@{Date}");
+
+	// Build ID Preview - NOT editable
+	UPROPERTY(VisibleAnywhere, Transient, Category="Build ID", meta=(DisplayName="Build ID Preview"))
+	FString BuildIdFormatPreview;
+
 
 	/*
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Material Watermark",
@@ -66,4 +85,11 @@ public:
 
 	virtual void PostInitProperties() override;
 #endif
+
+	UFUNCTION()
+	FString BuildFinalBuildId() const;
+
+	UFUNCTION()
+	static TArray<FName> GetAvailableBuildIdTokens();
+
 };
