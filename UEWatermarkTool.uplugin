@@ -19,6 +19,11 @@
 			"Name": "UEWatermarkTool",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UEWatermarkToolEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

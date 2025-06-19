@@ -21,6 +21,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
 	static bool ShouldShowLightWatermark();
+	
+	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
+	static FString GetBuildIdString();
 /*
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
 	static void SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject);

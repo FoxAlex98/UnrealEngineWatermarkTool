@@ -74,6 +74,11 @@ void UDynamicWatermarkWidgetBase::UpdateWatermarkPosition() const
 FVector2D UDynamicWatermarkWidgetBase::GenerateRandomPosition() const
 {
 	FVector2D ViewportSize;
+	if (!GEngine || !GEngine->GameViewport)
+	{
+		UE_LOG(LogWatermark, Log, TEXT("UDynamicWatermarkWidgetBase::UpdateWatermarkPosition - GEngine or GameViewport are not valid"));
+		return FVector2D::ZeroVector;
+	}
 	GEngine->GameViewport->GetViewportSize(ViewportSize);
 
 	FVector2D WidgetSize = FVector2D(0.f, 0.f);

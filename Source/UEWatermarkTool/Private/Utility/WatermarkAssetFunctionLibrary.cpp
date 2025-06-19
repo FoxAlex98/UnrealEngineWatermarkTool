@@ -1083,7 +1083,7 @@ UTexture2D* UWatermarkAssetFunctionLibrary::ExtractQuantizedWatermark(UTexture2D
 	return OutTex;
 }
 */
-
+#if WITH_EDITOR
 void UWatermarkAssetFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
 {
 	if (!HostTexture || !WatermarkTexture)
@@ -1300,3 +1300,4 @@ UTexture2D* UWatermarkAssetFunctionLibrary::BlendTextures(UTexture2D* Base, UTex
 
 	return OutTex;
 }
+#endif

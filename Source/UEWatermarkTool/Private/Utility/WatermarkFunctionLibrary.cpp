@@ -18,6 +18,12 @@ bool UWatermarkFunctionLibrary::ShouldShowLightWatermark()
 {
 	return UWatermarkConfig::Get()->EnableLightWatermark.ShouldBeEnabled();
 }
+
+FString UWatermarkFunctionLibrary::GetBuildIdString()
+{
+	return UWatermarkConfig::Get()->GetBuildIdString();
+}
+
 /*
 void UWatermarkFunctionLibrary::SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject)
 {

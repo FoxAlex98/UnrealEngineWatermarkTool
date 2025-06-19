@@ -25,19 +25,19 @@ public:
 	bool bAutoAddMetadataOnImport = false;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Folder to exclude",
-		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+		meta=(EditCondition="bAutoAddMetadataOnImport"))
 	TArray<FDirectoryPath> FoldersToExclude = {};
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Should Add Company Name in metadata",
-		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+		meta=(EditCondition="bAutoAddMetadataOnImport"))
 	bool bShouldAddCompanyName = false;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Company Name",
-		meta=(EditCondition="bAutoAddMetadataOnImport && bShouldAddCompanyName", EditConditionHides))
+		meta=(EditCondition="bAutoAddMetadataOnImport && bShouldAddCompanyName"))
 	FName CompanyName;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Additional Metadata",
-		meta=(EditCondition="bAutoAddMetadataOnImport", EditConditionHides))
+		meta=(EditCondition="bAutoAddMetadataOnImport"))
 	TMap<FString, FString> AdditionalMetadata = {};
 
 };
