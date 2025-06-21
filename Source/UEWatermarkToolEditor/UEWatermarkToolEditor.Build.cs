@@ -23,6 +23,8 @@ public class UEWatermarkToolEditor : ModuleRules
                 "Slate",
                 "SlateCore", 
                 "UnrealEd",
+                "EditorSubsystem",
+                "EditorScriptingUtilities",
                 "UEWatermarkTool"
             }
         );
