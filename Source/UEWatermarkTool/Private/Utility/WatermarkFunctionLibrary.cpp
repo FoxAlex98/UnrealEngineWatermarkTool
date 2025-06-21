@@ -6,6 +6,7 @@
 #include "UEWatermarkTool.h"
 #include "Blueprint/UserWidget.h"
 #include "Config/WatermarkConfig.h"
+#include "Config/WatermarkConfigEditor.h"
 #include "Kismet/KismetMaterialLibrary.h"
 #include "Materials/MaterialParameterCollection.h"
 
@@ -22,6 +23,11 @@ bool UWatermarkFunctionLibrary::ShouldShowLightWatermark()
 FString UWatermarkFunctionLibrary::GetBuildIdString()
 {
 	return UWatermarkConfig::Get()->GetBuildIdString();
+}
+
+UTexture2D* UWatermarkFunctionLibrary::GetDefaultWatermarkTexture()
+{
+	return UWatermarkConfigEditor::Get()->DefaultWatermarkTexture.LoadSynchronous();
 }
 
 /*

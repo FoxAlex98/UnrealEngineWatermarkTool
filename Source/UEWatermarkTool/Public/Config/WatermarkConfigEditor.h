@@ -14,12 +14,12 @@ class UEWATERMARKTOOL_API UWatermarkConfigEditor : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
-	static const UWatermarkConfigEditor* Get() { return GetDefault<UWatermarkConfigEditor>(); }
-
 	virtual FName GetContainerName() const override { return TEXT("Project"); }
 	virtual FName GetSectionName() const override { return TEXT("Watermark Editor Config"); }
 
 public:
+	
+	static const UWatermarkConfigEditor* Get() { return GetDefault<UWatermarkConfigEditor>(); }
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Metadata", DisplayName="Automatically Add Metadata On Import Asset")
 	bool bAutoAddMetadataOnImport = false;
@@ -40,4 +40,6 @@ public:
 		meta=(EditCondition="bAutoAddMetadataOnImport"))
 	TMap<FString, FString> AdditionalMetadata = {};
 
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Watermark")
+	TSoftObjectPtr<UTexture2D> DefaultWatermarkTexture;
 };

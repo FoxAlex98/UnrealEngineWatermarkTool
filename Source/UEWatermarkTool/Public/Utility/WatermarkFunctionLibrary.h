@@ -24,6 +24,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
 	static FString GetBuildIdString();
+	
+	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
+	static UTexture2D* GetDefaultWatermarkTexture();
 /*
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
 	static void SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject);
