@@ -31,10 +31,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
 	static UTexture2D* ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture);
 
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static void EmbedWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& WatermarkPattern, int32 VertexCount);
+	
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static FString ExtractWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, int32 VertexCount, int32 DecimalDigits);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static bool VerifyWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold);
+
 private:
 
 	static bool ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight);
 	static void ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out);
 	static UTexture2D* CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height);
-
+	static int32 GetSeedFromString(const FString& Seed);
 };

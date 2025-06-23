@@ -25,7 +25,9 @@ public class UEWatermarkToolEditor : ModuleRules
                 "UnrealEd",
                 "EditorSubsystem",
                 "EditorScriptingUtilities",
-                "UEWatermarkTool"
+                "UEWatermarkTool",
+                "StaticMeshDescription",
+                "MeshDescription",
             }
         );
     }

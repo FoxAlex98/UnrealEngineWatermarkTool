@@ -51,11 +51,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Watermark|RenderTarget")
 	static FString ExtractLSBFromRenderTarget(UTextureRenderTarget2D* RenderTarget, int32 MessageLength);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|StaticMesh")
-	static void EmbedWatermarkInStaticMesh(UStaticMesh* StaticMesh, const FString& NumericPattern);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|StaticMesh")
-	static FString ExtractWatermarkFromStaticMesh(UStaticMesh* StaticMesh, int32 DecimalDigits);
 
 #endif
 

@@ -41,8 +41,6 @@ public class UEWatermarkTool : ModuleRules
 				"SlateCore",
 				"DeveloperSettings",
 				"UMG",
-				"StaticMeshDescription",
-				"MeshDescription",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
