@@ -8,6 +8,7 @@
 #include "Config/WatermarkConfig.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FWatermarkDetailsCustomization"
 
@@ -57,17 +58,39 @@ void FWatermarkDetailsCustomization::ShowWatermarkPreview(UWatermarkConfig* Conf
 		Config->ShowSlateWatermarkPreview_Internal();
 		break;
 	case EWidgetWatermarkType::UserWidgetWatermark:
-		{
-			UClass* WatermarkWidgetClass = UWatermarkConfig::Get()->WatermarkUserWidgetClass.LoadSynchronous();
-			UUserWidget* WatermarkUserWidget = CreateWidget<UUserWidget>(GEditor->GetEditorWorldContext().World(), WatermarkWidgetClass);
-			Config->ShowUMGWatermarkPreview_Internal(WatermarkUserWidget->TakeWidget());
-		}
+		OpenUserWidgetInEditor(Config->WatermarkUserWidgetClass);
 		break;
 	default:
 		UE_LOG(LogWatermarkEditor, Warning, TEXT("FWatermarkDetailsCustomization::ShowWatermarkPreview - Unknown watermark type"));
 		break;
 	}
 	
+}
+
+void FWatermarkDetailsCustomization::OpenUserWidgetInEditor(const TSoftClassPtr<UUserWidget> SoftClass)
+{
+	if (!SoftClass.IsValid())
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("FWatermarkDetailsCustomization::OpenUserWidgetInEditor - SoftClass not valid or null"));
+		return;
+	}
+
+	UClass* WidgetClass = SoftClass.LoadSynchronous();
+	if (!WidgetClass)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("FWatermarkDetailsCustomization::OpenUserWidgetInEditor - LoadSynchronous returned nullptr"));
+		return;
+	}
+
+	UBlueprint* BP = Cast<UBlueprint>(WidgetClass->ClassGeneratedBy);
+	if (!BP)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("FWatermarkDetailsCustomization::OpenUserWidgetInEditor - ClassGeneratedBy is not a valid Blueprint"));
+		return;
+	}
+
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(BP);
+	UE_LOG(LogWatermarkEditor, Log, TEXT("FWatermarkDetailsCustomization::OpenUserWidgetInEditor - Open Editor For %s"), *BP->GetName());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -11,9 +11,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 	void ShowWatermarkPreview(UWatermarkConfig* Config);
-
-#if WITH_EDITORONLY_DATA
-private:
-	static TWeakPtr<SWindow> WatermarkPreviewWindow;
-#endif
+	
+	void OpenUserWidgetInEditor(const TSoftClassPtr<UUserWidget> SoftClass);
 };
