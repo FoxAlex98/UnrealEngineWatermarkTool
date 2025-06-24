@@ -595,3 +595,121 @@ int32 UWatermarkEditorFunctionLibrary::GetSeedFromString(const FString& Seed)
 {
 	return static_cast<int32>(FCrc::StrCrc32(*Seed));
 }
+
+void UWatermarkEditorFunctionLibrary::EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+{
+	if (!HostTexture || !WatermarkTexture)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedLSBTextureWatermarkRGBBits - Invalid textures"));
+		return;
+	}
+
+	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+	const int32 HostWidth = HostMip.SizeX;
+	const int32 HostHeight = HostMip.SizeY;
+
+	TArray<FColor> WmColors;
+	int32 WmWidth, WmHeight;
+	if (!ReadTexturePixels(WatermarkTexture, WmColors, WmWidth, WmHeight))
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedLSBTextureWatermarkRGBBits - Failed to read watermark pixels"));
+		HostMip.BulkData.Unlock();
+		return;
+	}
+
+	int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
+	int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
+	TArray<FColor> ResizedColors;
+
+	if (WmWidth > HostWidth || WmHeight > HostHeight)
+	{
+		ResizePixels(WmColors, WmWidth, WmHeight, TargetWidth, TargetHeight, ResizedColors);
+	}
+	else
+	{
+		ResizedColors = MoveTemp(WmColors);
+	}
+
+	const int32 StartX = HostWidth - TargetWidth;
+	const int32 StartY = HostHeight - TargetHeight;
+
+	for (int32 y = 0; y < TargetHeight; ++y)
+	{
+		for (int32 x = 0; x < TargetWidth; ++x)
+		{
+			const int32 HostIdx = (StartY + y) * HostWidth + (StartX + x);
+			const int32 WmIdx = y * TargetWidth + x;
+			
+			const FColor& wm = ResizedColors[WmIdx];
+			uint8 Rbit = (wm.R > 127) ? 1 : 0;
+			uint8 Gbit = (wm.G > 127) ? 1 : 0;
+			uint8 Bbit = (wm.B > 127) ? 1 : 0;
+
+			uint8& R = HostPixels[HostIdx * 4 + 2];
+			uint8& G = HostPixels[HostIdx * 4 + 1];
+			uint8& B = HostPixels[HostIdx * 4 + 0];
+
+			R = (R & ~1) | Rbit;
+			G = (G & ~1) | Gbit;
+			B = (B & ~1) | Bbit;
+		}
+	}
+
+	HostMip.BulkData.Unlock();
+	HostTexture->UpdateResource();
+
+	if (SaveAsset(HostTexture)) return;
+
+	UE_LOG(LogWatermarkEditor, Log, TEXT("EmbedLSBTextureWatermarkRGBBits - Embedded RGB watermark [%d x %d] using 1 LSB per channel"), TargetWidth, TargetHeight);
+}
+
+UTexture2D* UWatermarkEditorFunctionLibrary::ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture)
+{
+	if (!WatermarkedTexture)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("ExtractLSBTextureWatermarkRGBBits - Invalid texture"));
+		return nullptr;
+	}
+
+	FTexture2DMipMap& Mip = WatermarkedTexture->GetPlatformData()->Mips[0];
+	const int32 Width = Mip.SizeX;
+	const int32 Height = Mip.SizeY;
+
+	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+	if (!Pixels)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("ExtractLSBTextureWatermarkRGBBits - Failed to lock mip data"));
+		return nullptr;
+	}
+
+	TArray<FColor> OutPixels;
+	OutPixels.SetNum(Width * Height);
+
+	for (int32 i = 0; i < Width * Height; ++i)
+	{
+		const int32 Index = i * 4;
+
+		uint8 Rbit = Pixels[Index + 2] & 1;
+		uint8 Gbit = Pixels[Index + 1] & 1;
+		uint8 Bbit = Pixels[Index + 0] & 1;
+
+		uint8 R = Rbit * 255;
+		uint8 G = Gbit * 255;
+		uint8 B = Bbit * 255;
+
+		OutPixels[i] = FColor(R, G, B, 255);
+	}
+
+	Mip.BulkData.Unlock();
+
+	UTexture2D* OutTex = CreateTransientTextureFromPixels(OutPixels, Width, Height);
+	if (!OutTex)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("ExtractLSBTextureWatermarkRGBBits - Failed to create texture"));
+		return nullptr;
+	}
+
+	UE_LOG(LogWatermarkEditor, Log, TEXT("ExtractLSBTextureWatermarkRGBBits - Extracted RGB watermark [%d x %d]"), Width, Height);
+	return OutTex;
+}

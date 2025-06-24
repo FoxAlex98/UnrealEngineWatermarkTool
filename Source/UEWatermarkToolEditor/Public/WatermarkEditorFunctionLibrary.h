@@ -40,6 +40,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
 	static bool VerifyWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold);
 
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static void EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	static UTexture2D* ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture);
+
 private:
 
 	static bool ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight);
