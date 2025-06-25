@@ -7,6 +7,22 @@
 #include "UEWatermarkTool.h"
 #include "GameVersion/GameVersionFunctionLibrary.h"
 
+FString UWatermarkConfig::GetBuildIdString() const
+{
+	FString BuildIdString;
+	if (bFormatBuildIdManually)
+	{
+		BuildIdString = UGameVersionFunctionLibrary::FormatBuildIdFromTemplate(BuildIdFormat);
+	}
+	else
+	{
+		BuildIdString = BuildFinalBuildIdWithMap();
+	}
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkConfig::GetBuildIdString - New Build ID: %s"), *BuildIdString);
+
+	return BuildIdString;
+}
+
 #if WITH_EDITOR
 
 void UWatermarkConfig::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -109,24 +125,7 @@ void UWatermarkConfig::ShowUMGWatermarkPreview_Internal(TSharedRef<SWidget> Widg
 	UE_LOG(LogWatermark, Log, TEXT("FWatermarkDetailsCustomization::ShowUMGWatermarkPreview_Internal - Created new window"));
 }
 
-FString UWatermarkConfig::GetBuildIdString() const
-{
-	FString BuildIdString;
-	if (bFormatBuildIdManually)
-	{
-		BuildIdString = UGameVersionFunctionLibrary::FormatBuildIdFromTemplate(BuildIdFormat);
-	}
-	else
-	{
-		BuildIdString = BuildFinalBuildIdWithMap();
-	}
-	UE_LOG(LogWatermark, Log, TEXT("UWatermarkConfig::GetBuildIdString - New Build ID: %s"), *BuildIdString);
-
-	return BuildIdString;
-}
-
 #endif
-
 
 FString UWatermarkConfig::BuildFinalBuildIdWithMap() const
 {

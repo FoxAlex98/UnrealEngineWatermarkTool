@@ -15,6 +15,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetTextLibrary.h"
 #include "Utility/WatermarkAssetFunctionLibrary.h"
 #include "Utility/WatermarkFunctionLibrary.h"
 
@@ -51,43 +53,33 @@ void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const 
 	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Handling screenshot"));
 
 	const UWatermarkConfig* Settings = UWatermarkConfig::Get();
-	if (!Settings || Settings->WatermarkMode == EScreenshotWatermarkMode::None)
+	if (Settings && Settings->bApplyWatermarkInScreenshot)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - No watermark mode set"));
-		return;
-	}
-
-	switch (Settings->WatermarkMode)
-	{
-	case EScreenshotWatermarkMode::TextOverlay:
-		ApplyTextOverlayWatermark(Width, Height, InBitmap, Settings->OverlayText, Settings->BackgroundColor);
-		break;
-
-	case EScreenshotWatermarkMode::ImageOverlay:
-		if (!Settings->ImageOverlayTexture.IsValid())
+		if (Settings->ImageOverlayTexture.IsValid())
 		{
-			UE_LOG(LogTemp, Error, TEXT("Image Overlay Texture not valid"));
+			UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Try to apply watermark in image"));
+			ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
 		}
-		ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
-		break;
-
-	case EScreenshotWatermarkMode::FontRasterOverlay:
-		ApplyFontRasterWatermark(Width, Height, InBitmap, Settings->FontText, Settings->Font);
-		break;
-	case EScreenshotWatermarkMode::Slate:
-		ApplySlateWidgetWatermark(Width, Height, InBitmap);
-		break;
-	case EScreenshotWatermarkMode::UMG:
-		ApplyWidgetOverlayWatermark(Width, Height, InBitmap, CurrentGameWorldRef);
-		break;
-	default: break;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Image Overlay Texture not valid, saving a normal screenshot"));
 	}
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 	ImageWrapper->SetRaw(InBitmap.GetData(), InBitmap.Num() * sizeof(FColor), Width, Height, ERGBFormat::BGRA, 8);
 	TArray64<uint8> PngData = ImageWrapper->GetCompressed();
-	FString ScreenshotPath = FPaths::ProjectSavedDir() / TEXT("Screenshots") / TEXT("WindowsEditor") / TEXT("Test.png");
+	
+	FString ScreenshotDir = FPaths::ProjectSavedDir() / TEXT("Screenshots/");
+
+#if WITH_EDITOR
+	ScreenshotDir.Append(TEXT("WindowsEditor/"));
+#else
+	ScreenshotDir.Append(TEXT("Windows/"));
+#endif
+	FString TimestampString = FDateTime::UtcNow().ToString();
+	FString ScreenshotPath = ScreenshotDir / TEXT("HighResScreenshot") + TimestampString + TEXT(".png");
 	FFileHelper::SaveArrayToFile(PngData, *ScreenshotPath);
 }
 
@@ -286,37 +278,17 @@ void UWatermarkSubsystem::OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWor
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnLevelChange"));
 }
 
-void UWatermarkSubsystem::ApplyTextOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, const FColor& RectColor)
-{
-	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
-
-	const int32 RectWidth = 200;
-	const int32 RectHeight = 50;
-
-	int32 StartX = Width - RectWidth - 10;
-	int32 StartY = Height - RectHeight - 10;
-
-	for (int32 Y = 0; Y < RectHeight; ++Y)
-	{
-		for (int32 X = 0; X < RectWidth; ++X)
-		{
-			int32 Index = (StartY + Y) * Width + (StartX + X);
-			if (Bitmap.IsValidIndex(Index))
-			{
-				Bitmap[Index] = RectColor;
-			}
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::ApplyTextOverlayWatermark - Watermark rectangle drawn"));
-}
-
 void UWatermarkSubsystem::ApplyImageOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UTexture2D* WatermarkTexture)
 {
 	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
 	
 	FTexture2DMipMap& Mip = WatermarkTexture->GetPlatformData()->Mips[0];
 	FColor* SourceData = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+	if (SourceData == nullptr)
+	{
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Can't Extract Bulk Data from Watermark Texure"))
+		return;
+	}
 	const int32 ImgWidth = Mip.SizeX;
 	const int32 ImgHeight = Mip.SizeY;
 
@@ -342,12 +314,6 @@ void UWatermarkSubsystem::ApplyImageOverlayWatermark(int32 Width, int32 Height, 
 	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Watermark image blended"));
 }
 
-void UWatermarkSubsystem::ApplyFontRasterWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, UFont* Font)
-{
-	// Versione placeholder: da implementare con render to texture o font bitmap lookup
-	UE_LOG(LogTemp, Warning, TEXT("UWatermarkSubsystem::ApplyFontRasterWatermark - Not implemented yet"));
-}
-
 FColor UWatermarkSubsystem::AlphaBlend(const FColor& Src, const FColor& Dst)
 {
 	float SrcAlpha = Src.A / 255.0f;
@@ -365,96 +331,4 @@ FColor UWatermarkSubsystem::AlphaBlend(const FColor& Src, const FColor& Dst)
 	uint8 A = FMath::Clamp(int32(OutAlpha * 255.0f), 0, 255);
 
 	return FColor(R, G, B, A);
-}
-
-void UWatermarkSubsystem::ApplyWidgetOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UObject* WorldContextObject)
-{
-	if (!IsValid(WorldContextObject)) return;
-	APlayerController* PC = WorldContextObject->GetWorld()->GetFirstPlayerController();
-	bool bHasSucceeded = false;
-	UUserWidget* WatermarkWidget = UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(PC, bHasSucceeded);
-	if (!WatermarkWidget) return;
-
-	TArray<FColor> WatermarkPixels;
-	UWatermarkAssetFunctionLibrary::RenderUserWidgetToBitmap(WatermarkWidget, Width, Height, WatermarkPixels);
-
-	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
-
-	int32 StartX = 0;
-	int32 StartY = 0;
-
-	for (int32 Y = 0; Y < Height; ++Y)
-	{
-		for (int32 X = 0; X < Width; ++X)
-		{
-			int32 SrcIndex = Y * Width + X;
-			int32 DstIndex = (StartY + Y) * Width + (StartX + X);
-
-			if (WatermarkPixels.IsValidIndex(SrcIndex) && Bitmap.IsValidIndex(DstIndex))
-			{
-				Bitmap[DstIndex] = AlphaBlend(WatermarkPixels[SrcIndex], Bitmap[DstIndex]);
-			}
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::ApplyWidgetOverlayWatermark - Widget blended"));
-}
-
-void UWatermarkSubsystem::ApplySlateWidgetWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
-{
-	TSharedRef<SWidget> ScreenshotSlateWatermark =
-		SNew(SBorder)
-			.BorderBackgroundColor(FLinearColor(0, 0, 0, 0))
-			.Padding(FMargin(10))
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("DEBUG BUILD")))
-				.ColorAndOpacity(FSlateColor(FLinearColor::Red))
-				.Font(FSlateFontInfo("Arial", 24))
-			];
-
-	TArray<FColor> WatermarkPixels;
-	UWatermarkAssetFunctionLibrary::RenderSlateWidgetToBitmap(ScreenshotSlateWatermark, Width, Height, WatermarkPixels);
-
-	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
-
-	int32 StartX = 0;
-	int32 StartY = 0;
-
-	/*
-	for (int32 Y = 0; Y < Height; ++Y)
-	{
-		for (int32 X = 0; X < Width; ++X)
-		{
-			int32 SrcIndex = Y * Width + X;
-			int32 DstIndex = (StartY + Y) * Width + (StartX + X);
-
-			if (WatermarkPixels.IsValidIndex(SrcIndex) && Bitmap.IsValidIndex(DstIndex))
-			{
-				Bitmap[DstIndex] = AlphaBlend(WatermarkPixels[SrcIndex], Bitmap[DstIndex]);
-			}
-		}
-	}
-	*/
-	for (int32 Y = 0; Y < Height; ++Y)
-	{
-		for (int32 X = 0; X < Width; ++X)
-		{
-			int32 SrcIdx = X + Y * Width;
-			int32 DstIdx = (StartX + X) + (StartY + Y) * Width;
-
-			if (DstIdx >= 0 && DstIdx < Bitmap.Num() && SrcIdx < WatermarkPixels.Num())
-			{
-				FColor Src = WatermarkPixels[SrcIdx];
-				FColor& Dst = Bitmap[DstIdx];
-
-				// Alpha blend
-				float SrcAlpha = Src.A / 255.0f;
-				Dst.R = FMath::Lerp(Dst.R, Src.R, SrcAlpha);
-				Dst.G = FMath::Lerp(Dst.G, Src.G, SrcAlpha);
-				Dst.B = FMath::Lerp(Dst.B, Src.B, SrcAlpha);
-			}
-		}
-	}
-	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::ApplySlateWidgetWatermark - Slate widget blended"));
 }

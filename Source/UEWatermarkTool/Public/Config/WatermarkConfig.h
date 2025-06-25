@@ -64,24 +64,15 @@ public:
 		meta=(AllowedClasses="/Script/Engine.MaterialParameterCollection"))
 	FSoftObjectPath GymMPC = nullptr;
 	*/
+
+	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
+	bool bApplyWatermarkInScreenshot;
 	
-	UPROPERTY(EditAnywhere, config, Category = "Watermark")
-	EScreenshotWatermarkMode WatermarkMode = EScreenshotWatermarkMode::None;
-
-	UPROPERTY(EditAnywhere, config, Category = "TextOverlay")
-	FString OverlayText;
-
-	UPROPERTY(EditAnywhere, config, Category = "TextOverlay")
-	FColor BackgroundColor = FColor::Red;
-
 	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
 	TSoftObjectPtr<UTexture2D> ImageOverlayTexture;
 
-	UPROPERTY(EditAnywhere, config, Category = "FontRasterOverlay")
-	FString FontText;
-
-	UPROPERTY(EditAnywhere, Category = "FontRasterOverlay")
-	UFont* Font;
+	UFUNCTION()                                
+	FString GetBuildIdString() const;          
 
 #if WITH_EDITOR
 	
@@ -93,11 +84,7 @@ public:
 	void ShowUMGWatermarkPreview_Internal(TSharedRef<SWidget> WidgetSlate);
 
 #endif
-
-	UFUNCTION()
-	FString GetBuildIdString() const;
 	
-
 #if WITH_EDITORONLY_DATA
 private:
 	static TWeakPtr<SWindow> WatermarkPreviewWindow;

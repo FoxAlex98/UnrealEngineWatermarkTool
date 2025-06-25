@@ -44,11 +44,7 @@ private:
 
 	UWorld* GetGameWorldContextless();
 
-	static void ApplyTextOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, const FColor& RectColor);
 	static void ApplyImageOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UTexture2D* WatermarkTexture);
-	static void ApplyFontRasterWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, const FString& Text, UFont* Font);
-	static void ApplyWidgetOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UObject* WorldContextObject);
-	static void ApplySlateWidgetWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap);
 
 	UPROPERTY(Transient)
 	UWorld* CurrentGameWorldRef;
