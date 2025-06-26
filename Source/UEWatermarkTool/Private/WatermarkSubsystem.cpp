@@ -50,20 +50,20 @@ void UWatermarkSubsystem::OnPostWorldInitialization(UWorld* World, FWorldInitial
 
 void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
 {
-	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Handling screenshot"));
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Handling screenshot"));
 
 	const UWatermarkConfig* Settings = UWatermarkConfig::Get();
 	if (Settings && Settings->bApplyWatermarkInScreenshot)
 	{
 		if (Settings->ImageOverlayTexture.IsValid())
 		{
-			UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Try to apply watermark in image"));
+			UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Try to apply watermark in image"));
 			ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Image Overlay Texture not valid, saving a normal screenshot"));
+		UE_LOG(LogWatermark, Error, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Image Overlay Texture not valid, saving a normal screenshot"));
 	}
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
@@ -85,12 +85,12 @@ void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const 
 
 void UWatermarkSubsystem::OnViewportResizedEvent(FViewport* Viewport, unsigned I)
 {
-	UE_LOG(LogTemp, Log, TEXT("Watermark Screenshot: ViewportResizedEvent"));
+	UE_LOG(LogWatermark, Log, TEXT("Watermark Screenshot: ViewportResizedEvent"));
 }
 
 void UWatermarkSubsystem::OnScreenshotRequestProcessed()
 {
-	UE_LOG(LogTemp, Log, TEXT("Watermark Screenshot: OnScreenshotRequestProcessed"));
+	UE_LOG(LogWatermark, Log, TEXT("Watermark Screenshot: OnScreenshotRequestProcessed"));
 }
 
 void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -311,7 +311,7 @@ void UWatermarkSubsystem::ApplyImageOverlayWatermark(int32 Width, int32 Height, 
 
 	Mip.BulkData.Unlock();
 
-	UE_LOG(LogTemp, Log, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Watermark image blended"));
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Watermark image blended"));
 }
 
 FColor UWatermarkSubsystem::AlphaBlend(const FColor& Src, const FColor& Dst)

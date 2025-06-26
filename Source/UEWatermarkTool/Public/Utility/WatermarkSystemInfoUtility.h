@@ -20,6 +20,9 @@ public:
 	static FString GetUserName();
 	
 	UFUNCTION(BlueprintPure, Category = "System Info")
+	static FString GetMacAddress();
+	
+	UFUNCTION(BlueprintPure, Category = "System Info")
 	static FString GetCPUBrand();
 	
 	UFUNCTION(BlueprintPure, Category = "System Info")
