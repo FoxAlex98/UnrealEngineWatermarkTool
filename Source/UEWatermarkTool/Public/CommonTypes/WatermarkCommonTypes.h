@@ -17,17 +17,6 @@ enum class EWatermarkType : uint8
 	ImageWatermark
 };
 
-UENUM(BlueprintType)
-enum class EScreenshotWatermarkMode : uint8
-{
-	None,
-	TextOverlay,
-	ImageOverlay,
-	Slate,
-	UMG,
-	FontRasterOverlay
-};
-
 USTRUCT(BlueprintType)
 struct FWatermarkEnableStatus
 {

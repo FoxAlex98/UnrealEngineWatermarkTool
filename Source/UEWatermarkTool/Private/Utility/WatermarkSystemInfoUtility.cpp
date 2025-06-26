@@ -4,11 +4,7 @@
 #include "Utility/WatermarkSystemInfoUtility.h"
 #include "HAL/PlatformProcess.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
-#include "Misc/EngineVersion.h"
-#include "RHI.h"
 #include "UEWatermarkTool.h"
-#include "Engine/Engine.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 
 FString UWatermarkSystemInfoUtility::GetUserName()

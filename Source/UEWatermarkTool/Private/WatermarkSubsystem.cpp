@@ -44,8 +44,12 @@ void UWatermarkSubsystem::OnPostLoadMapWithWorld(UWorld* World)
 void UWatermarkSubsystem::OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue)
 {
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnPostWorldInitialization"));
-	//TODO: check if is not in editor first time
-	AddWatermarkToViewport();
+	
+	if (World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE))
+	{
+		CurrentGameWorldRef = World;
+		AddWatermarkToViewport();
+	}
 }
 
 void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
@@ -175,13 +179,14 @@ void UWatermarkSubsystem::AddSlateWatermark()
 
 void UWatermarkSubsystem::AddUMGWatermark()
 {
+	UWorld* World = CurrentGameWorldRef;
+		
 	if (IsValid(UMGWatermarkWidget) && UMGWatermarkWidget->IsInViewport())
 	{
 		UE_LOG(LogWatermark, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - UMGWatermarkWidget is already in viewport"));
 		return;
 	}
 	
-	UWorld* World = GetGameWorldContextless();
 	if (!World)
 	{
 		UE_LOG(LogWatermark, Warning, TEXT("WatermarkSubsystem:AddUMGWatermark - World is null, retrying next tick"));

@@ -1,14 +1,10 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "Utility/WatermarkFunctionLibrary.h"
-
 #include "UEWatermarkTool.h"
 #include "Blueprint/UserWidget.h"
 #include "Config/WatermarkConfig.h"
 #include "Config/WatermarkConfigEditor.h"
-#include "Kismet/KismetMaterialLibrary.h"
-#include "Materials/MaterialParameterCollection.h"
 
 bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
 {

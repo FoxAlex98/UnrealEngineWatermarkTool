@@ -52,7 +52,6 @@ void UWatermarkConfig::PostInitProperties()
 	BuildIdPreview = GetBuildIdString();
 }
 
-
 TWeakPtr<SWindow> UWatermarkConfig::WatermarkPreviewWindow;
 
 void UWatermarkConfig::ShowSlateWatermarkPreview_Internal()
