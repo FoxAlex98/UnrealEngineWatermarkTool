@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Config/WatermarkConfig.h"
 #include "Config/WatermarkConfigEditor.h"
+#include "UIWatermark/UIWatermarkCompoundWidget.h"
 
 bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
 {
@@ -73,4 +74,9 @@ UUserWidget* UWatermarkFunctionLibrary::CreateWatermarkUserWidgetFromConfig(APla
 	}
 
 	return WatermarkUserWidget;
+}
+
+TSharedPtr<SWidget> UWatermarkFunctionLibrary::CreateWatermarkSlateWidget()
+{
+	return SNew(SUIWatermarkCompoundWidget);
 }

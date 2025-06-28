@@ -72,7 +72,10 @@ public:
 	TSoftObjectPtr<UTexture2D> ImageOverlayTexture;
 
 	UFUNCTION()                                
-	FString GetBuildIdString() const;          
+	FString GetBuildIdString() const;
+
+	UFUNCTION()
+	bool IsUIWatermarkWidgetValid(EWidgetWatermarkType WidgetWatermarkTypeToCheck) const;
 
 #if WITH_EDITOR
 	

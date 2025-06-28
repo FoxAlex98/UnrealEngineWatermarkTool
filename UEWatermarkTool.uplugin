@@ -24,6 +24,24 @@
 			"Name": "UEWatermarkToolEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UEWatermarkToolMovieRender",
+			"Type": "Runtime",
+			"LoadingPhase": "None",
+			"AdditionalDependencies": [ "MovieRenderPipelineCore" ],
+			"Optional": true
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": false,
+			"Optional": true
 		}
 	]
 }

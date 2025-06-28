@@ -7,6 +7,21 @@
 void FUEWatermarkToolModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	auto& ModuleManager = FModuleManager::Get();
+	if (ModuleManager.IsModuleLoaded("MovieRenderPipelineCore"))
+	{
+		ModuleManager.LoadModule("UEWatermarkToolMovieRender");
+	}
+	else
+	{
+		ModuleManager.OnModulesChanged().AddLambda([&ModuleManager](FName Name, EModuleChangeReason Reason)
+		{
+			if (Name == "MovieRenderPipelineCore" && Reason == EModuleChangeReason::ModuleLoaded)
+			{
+				ModuleManager.LoadModule("UEWatermarkToolMovieRender");
+			}
+		});
+	}
 }
 
 void FUEWatermarkToolModule::ShutdownModule()

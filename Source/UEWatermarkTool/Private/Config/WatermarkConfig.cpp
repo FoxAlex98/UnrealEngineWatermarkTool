@@ -23,6 +23,19 @@ FString UWatermarkConfig::GetBuildIdString() const
 	return BuildIdString;
 }
 
+bool UWatermarkConfig::IsUIWatermarkWidgetValid(EWidgetWatermarkType WidgetWatermarkTypeToCheck) const
+{
+	switch (WidgetWatermarkTypeToCheck)
+	{
+	case EWidgetWatermarkType::SlateWatermark:
+		return !WatermarkSlateWidgets.IsEmpty();
+	case EWidgetWatermarkType::UserWidgetWatermark:
+		return !WatermarkUserWidgetClass.IsNull();
+	default:
+		return false;
+	}
+}
+
 #if WITH_EDITOR
 
 void UWatermarkConfig::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

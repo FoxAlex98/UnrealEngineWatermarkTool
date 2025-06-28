@@ -15,13 +15,10 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "Kismet/KismetTextLibrary.h"
-#include "Utility/WatermarkAssetFunctionLibrary.h"
 #include "Utility/WatermarkFunctionLibrary.h"
 
 TSharedPtr<SConstraintCanvas> RootCanvas;
-TSharedPtr<SUIWatermarkCompoundWidget> SlateWatermarkWidget;
+TSharedPtr<SWidget> SlateWatermarkWidget;
 UUserWidget* UMGWatermarkWidget;
 
 void UWatermarkSubsystem::OnSeamlessTravelStart(UWorld* World, const FString& URL)

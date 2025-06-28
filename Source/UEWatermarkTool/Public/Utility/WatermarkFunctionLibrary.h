@@ -38,4 +38,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Watermark")
 	static UUserWidget* CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded);
 
+	static TSharedPtr<SWidget> CreateWatermarkSlateWidget();
+
 };
