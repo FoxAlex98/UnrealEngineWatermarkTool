@@ -2,13 +2,12 @@
 
 #include "WatermarkEditorFunctionLibrary.h"
 
-#include "EditorAssetLibrary.h"
-#include "FileHelpers.h"
 #include "ImageUtils.h"
 #include "StaticMeshAttributes.h"
 #include "UEWatermarkToolEditor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "UObject/SavePackage.h"
+
+#pragma region TextureWatermark
 
 UTexture2D* UWatermarkEditorFunctionLibrary::CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& InPackagePath, const FString& InAssetName, bool bOverwriteOriginal)
 {
@@ -195,32 +194,6 @@ UTexture2D* UWatermarkEditorFunctionLibrary::BlendTextures(UTexture2D* Base, UTe
 	return OutTex;
 }
 
-bool UWatermarkEditorFunctionLibrary::SaveAsset(UObject* AssetToSave)
-{
-	UPackage* Package = AssetToSave->GetOutermost();
-	if (!Package)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to get package from texture"));
-		return true;
-	}
-
-	Package->Modify();
-	//HostTexture->Modify();
-	AssetToSave->MarkPackageDirty();
-
-	FString PackageFilePath = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
-
-	if (UPackage::SavePackage(Package, AssetToSave, RF_Public | RF_Standalone, *PackageFilePath))
-	{
-		//UE_LOG(LogWatermarkEditor, Log, TEXT("EmbedQuantizedWatermark - Watermark embedded and saved to disk [%d x %d] using 3-bit LSB"), TargetWidth, TargetHeight);
-	}
-	else
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to save package to %s"), *PackageFilePath);
-	}
-	return false;
-}
-
 void UWatermarkEditorFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
 {
 	if (!HostTexture || !WatermarkTexture)
@@ -355,37 +328,6 @@ UTexture2D* UWatermarkEditorFunctionLibrary::ExtractQuantizedWatermark(UTexture2
 	return OutTex;
 }
 
-bool UWatermarkEditorFunctionLibrary::ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight)
-{
-	if (!Texture || !Texture->GetPlatformData() || Texture->GetPlatformData()->Mips.Num() == 0)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Invalid texture or platform data"));
-		return false;
-	}
-
-	FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
-	OutWidth = Mip.SizeX;
-	OutHeight = Mip.SizeY;
-
-	FColor* Src = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
-	if (!Src)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Failed to lock mip data"));
-		return false;
-	}
-
-	OutPixels.SetNum(OutWidth * OutHeight);
-	FMemory::Memcpy(OutPixels.GetData(), Src, OutWidth * OutHeight * sizeof(FColor));
-	Mip.BulkData.Unlock();
-
-	return true;
-}
-
-void UWatermarkEditorFunctionLibrary::ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out)
-{
-	FImageUtils::ImageResize(SrcW, SrcH, Src, DestW, DestH, Out, true);
-}
-
 UTexture2D* UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height)
 {
 	UTexture2D* OutTex = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
@@ -408,192 +350,6 @@ UTexture2D* UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels(co
 	OutTex->UpdateResource();
 
 	return OutTex;
-}
-
-void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(
-	UStaticMesh* StaticMesh,
-	const FString& Seed,
-	const FString& WatermarkPattern,
-	int32 VertexCount
-)
-{
-	if (!StaticMesh || Seed.IsEmpty() || WatermarkPattern.IsEmpty())
-	{
-		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: Invalid parameters"));
-		return;
-	}
-
-	FString NewWatermarkPattern = FString::Printf(TEXT("%s%d"), *WatermarkPattern, 1);
-	
-	float WatermarkValue = FCString::Atof(*FString::Printf(TEXT("0.%s"), *NewWatermarkPattern));
-	if (WatermarkValue == 0.f)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Watermark value evaluated to 0"));
-	}
-
-	StaticMesh->Modify();
-	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
-	if (!MeshDesc)
-	{
-		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: MeshDescription is missing"));
-		return;
-	}
-
-	FStaticMeshAttributes Attributes(*MeshDesc);
-	TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
-
-	TArray<FVertexID> VertexIDs;
-	for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
-		VertexIDs.Add(ID);
-
-	if (VertexIDs.Num() < VertexCount)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Not enough vertices"));
-		VertexCount = VertexIDs.Num();
-	}
-
-	FRandomStream RNG(GetSeedFromString(Seed));
-	for (int32 i = 0; i < VertexCount; ++i)
-	{
-		int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
-		FVertexID VtxID = VertexIDs[Index];
-		FVector3f Pos = Positions[VtxID];
-
-		int32 IntPart = FMath::FloorToInt(Pos.X);
-		Pos.X = IntPart + WatermarkValue;
-
-		Positions[VtxID] = Pos;
-	}
-
-	StaticMesh->CommitMeshDescription(0);
-	StaticMesh->Build(false);
-	StaticMesh->MarkPackageDirty();
-	SaveAsset(StaticMesh);
-	
-	UE_LOG(LogTemp, Log, TEXT("EmbedWatermarkDecimal: Watermark '%s' embedded in %d vertices"), *WatermarkPattern, VertexCount);
-}
-
-FString UWatermarkEditorFunctionLibrary::ExtractWatermarkDecimal(
-	UStaticMesh* StaticMesh,
-	const FString& Seed,
-	int32 VertexCount,
-	int32 DecimalDigits
-)
-{
-	if (!StaticMesh || Seed.IsEmpty() || DecimalDigits <= 0)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: Invalid parameters"));
-		return FString();
-	}
-
-	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
-	if (!MeshDesc)
-	{
-		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: MeshDescription missing"));
-		return FString();
-	}
-
-	FStaticMeshAttributes Attributes(*MeshDesc);
-	TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
-
-	TArray<FVertexID> VertexIDs;
-	for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
-		VertexIDs.Add(ID);
-
-	if (VertexIDs.Num() < VertexCount)
-	{
-		VertexCount = VertexIDs.Num();
-	}
-
-	FRandomStream RNG(GetSeedFromString(Seed));
-	FString Collected;
-
-	for (int32 i = 0; i < VertexCount; ++i)
-	{
-		int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
-		FVertexID VtxID = VertexIDs[Index];
-		FVector3f Pos = Positions[VtxID];
-
-		float Fraction = FMath::Abs(Pos.X - FMath::FloorToFloat(Pos.X));
-		FString AsString = FString::Printf(TEXT("%.10f"), Fraction);
-		int32 DotIndex;
-		if (AsString.FindChar('.', DotIndex))
-		{
-			FString Decimals = AsString.Mid(DotIndex + 1, DecimalDigits);
-			Collected += FString::Printf(TEXT("\n %s"), *Decimals);
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("ExtractWatermarkDecimal: Extracted = %s"), *Collected);
-	return Collected;
-}
-
-bool UWatermarkEditorFunctionLibrary::VerifyWatermarkDecimal(
-    UStaticMesh* StaticMesh,
-    const FString& Seed,
-    const FString& ExpectedPattern,
-    int32 VertexCount,
-    float ConfidenceThreshold
-)
-{
-    if (!StaticMesh || Seed.IsEmpty() || ExpectedPattern.IsEmpty() || ConfidenceThreshold <= 0.f)
-    {
-        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: Invalid parameters"));
-        return false;
-    }
-
-    FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
-    if (!MeshDesc)
-    {
-        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: MeshDescription missing"));
-        return false;
-    }
-
-    FStaticMeshAttributes Attributes(*MeshDesc);
-    TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
-
-    TArray<FVertexID> VertexIDs;
-    for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
-        VertexIDs.Add(ID);
-
-    if (VertexIDs.Num() < VertexCount)
-        VertexCount = VertexIDs.Num();
-
-    FRandomStream RNG(GetSeedFromString(Seed));
-    int32 Matches = 0;
-
-	int32 DecimalDigits = ExpectedPattern.Len();
-
-    const int32 Pow10 = FMath::Pow(10, static_cast<float>(DecimalDigits));
-
-    for (int32 i = 0; i < VertexCount; i++)
-    {
-        int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
-        FVertexID VtxID = VertexIDs[Index];
-        FVector3f Pos = Positions[VtxID];
-
-        float DecimalPart = FMath::Abs(Pos.X - FMath::FloorToFloat(Pos.X));
-        int32 Truncated = static_cast<int32>(DecimalPart * Pow10);
-
-        FString TruncatedStr = FString::Printf(TEXT("%0*d"), DecimalDigits, Truncated);
-
-        if (TruncatedStr == ExpectedPattern)
-        {
-            Matches++;
-        }
-    }
-
-    float Confidence = static_cast<float>(Matches) / static_cast<float>(VertexCount);
-    UE_LOG(LogTemp, Log, TEXT("VerifyWatermarkDecimal: Match ratio = %.2f%% (%d/%d)"), Confidence * 100.0f, Matches, VertexCount);
-
-    return Confidence >= ConfidenceThreshold;
-}
-
-
-
-int32 UWatermarkEditorFunctionLibrary::GetSeedFromString(const FString& Seed)
-{
-	return static_cast<int32>(FCrc::StrCrc32(*Seed));
 }
 
 void UWatermarkEditorFunctionLibrary::EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
@@ -712,4 +468,235 @@ UTexture2D* UWatermarkEditorFunctionLibrary::ExtractTextureWatermarkUsingRGBThre
 
 	UE_LOG(LogWatermarkEditor, Log, TEXT("ExtractLSBTextureWatermarkRGBBits - Extracted RGB watermark [%d x %d]"), Width, Height);
 	return OutTex;
+}
+
+#pragma endregion TextureWatermark
+
+#pragma region StaticMeshWatermark
+
+void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& WatermarkPattern, int32 VertexCount)
+{
+	if (!StaticMesh || Seed.IsEmpty() || WatermarkPattern.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: Invalid parameters"));
+		return;
+	}
+
+	FString NewWatermarkPattern = FString::Printf(TEXT("%s%d"), *WatermarkPattern, 1);
+	
+	float WatermarkValue = FCString::Atof(*FString::Printf(TEXT("0.%s"), *NewWatermarkPattern));
+	if (WatermarkValue == 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Watermark value evaluated to 0"));
+	}
+
+	StaticMesh->Modify();
+	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
+	if (!MeshDesc)
+	{
+		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: MeshDescription is missing"));
+		return;
+	}
+
+	FStaticMeshAttributes Attributes(*MeshDesc);
+	TVertexAttributesRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+	TArray<FVertexID> VertexIDs;
+	for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
+		VertexIDs.Add(ID);
+
+	if (VertexIDs.Num() < VertexCount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Not enough vertices"));
+		VertexCount = VertexIDs.Num();
+	}
+
+	FRandomStream RNG(GetSeedFromString(Seed));
+	for (int32 i = 0; i < VertexCount; ++i)
+	{
+		int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
+		FVertexID VtxID = VertexIDs[Index];
+		FVector3f Pos = Positions[VtxID];
+
+		int32 IntPart = FMath::FloorToInt(Pos.X);
+		Pos.X = IntPart + WatermarkValue;
+
+		Positions[VtxID] = Pos;
+	}
+
+	StaticMesh->CommitMeshDescription(0);
+	StaticMesh->Build(false);
+	StaticMesh->MarkPackageDirty();
+	SaveAsset(StaticMesh);
+	
+	UE_LOG(LogTemp, Log, TEXT("EmbedWatermarkDecimal: Watermark '%s' embedded in %d vertices"), *WatermarkPattern, VertexCount);
+}
+
+FString UWatermarkEditorFunctionLibrary::ExtractWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, int32 VertexCount, int32 DecimalDigits)
+{
+	if (!StaticMesh || Seed.IsEmpty() || DecimalDigits <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: Invalid parameters"));
+		return FString();
+	}
+
+	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
+	if (!MeshDesc)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: MeshDescription missing"));
+		return FString();
+	}
+
+	FStaticMeshAttributes Attributes(*MeshDesc);
+	TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+	TArray<FVertexID> VertexIDs;
+	for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
+		VertexIDs.Add(ID);
+
+	if (VertexIDs.Num() < VertexCount)
+	{
+		VertexCount = VertexIDs.Num();
+	}
+
+	FRandomStream RNG(GetSeedFromString(Seed));
+	FString Collected;
+
+	for (int32 i = 0; i < VertexCount; ++i)
+	{
+		int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
+		FVertexID VtxID = VertexIDs[Index];
+		FVector3f Pos = Positions[VtxID];
+
+		float Fraction = FMath::Abs(Pos.X - FMath::FloorToFloat(Pos.X));
+		FString AsString = FString::Printf(TEXT("%.10f"), Fraction);
+		int32 DotIndex;
+		if (AsString.FindChar('.', DotIndex))
+		{
+			FString Decimals = AsString.Mid(DotIndex + 1, DecimalDigits);
+			Collected += FString::Printf(TEXT("\n %s"), *Decimals);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("ExtractWatermarkDecimal: Extracted = %s"), *Collected);
+	return Collected;
+}
+
+bool UWatermarkEditorFunctionLibrary::VerifyWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold)
+{
+    if (!StaticMesh || Seed.IsEmpty() || ExpectedPattern.IsEmpty() || ConfidenceThreshold <= 0.f)
+    {
+        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: Invalid parameters"));
+        return false;
+    }
+
+    FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
+    if (!MeshDesc)
+    {
+        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: MeshDescription missing"));
+        return false;
+    }
+
+    FStaticMeshAttributes Attributes(*MeshDesc);
+    TVertexAttributesConstRef<FVector3f> Positions = Attributes.GetVertexPositions();
+
+    TArray<FVertexID> VertexIDs;
+    for (const FVertexID& ID : MeshDesc->Vertices().GetElementIDs())
+        VertexIDs.Add(ID);
+
+    if (VertexIDs.Num() < VertexCount)
+        VertexCount = VertexIDs.Num();
+
+    FRandomStream RNG(GetSeedFromString(Seed));
+    int32 Matches = 0;
+
+	int32 DecimalDigits = ExpectedPattern.Len();
+
+    const int32 Pow10 = FMath::Pow(10, static_cast<float>(DecimalDigits));
+
+    for (int32 i = 0; i < VertexCount; i++)
+    {
+        int32 Index = RNG.RandRange(0, VertexIDs.Num() - 1);
+        FVertexID VtxID = VertexIDs[Index];
+        FVector3f Pos = Positions[VtxID];
+
+        float DecimalPart = FMath::Abs(Pos.X - FMath::FloorToFloat(Pos.X));
+        int32 Truncated = static_cast<int32>(DecimalPart * Pow10);
+
+        FString TruncatedStr = FString::Printf(TEXT("%0*d"), DecimalDigits, Truncated);
+
+        if (TruncatedStr == ExpectedPattern)
+        {
+            Matches++;
+        }
+    }
+
+    float Confidence = static_cast<float>(Matches) / static_cast<float>(VertexCount);
+    UE_LOG(LogTemp, Log, TEXT("VerifyWatermarkDecimal: Match ratio = %.2f%% (%d/%d)"), Confidence * 100.0f, Matches, VertexCount);
+
+    return Confidence >= ConfidenceThreshold;
+}
+
+#pragma endregion StaticMeshWatermark
+
+int32 UWatermarkEditorFunctionLibrary::GetSeedFromString(const FString& Seed)
+{
+	return static_cast<int32>(FCrc::StrCrc32(*Seed));
+}
+
+bool UWatermarkEditorFunctionLibrary::ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight)
+{
+	if (!Texture || !Texture->GetPlatformData() || Texture->GetPlatformData()->Mips.Num() == 0)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Invalid texture or platform data"));
+		return false;
+	}
+
+	FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
+	OutWidth = Mip.SizeX;
+	OutHeight = Mip.SizeY;
+
+	FColor* Src = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
+	if (!Src)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Failed to lock mip data"));
+		return false;
+	}
+
+	OutPixels.SetNum(OutWidth * OutHeight);
+	FMemory::Memcpy(OutPixels.GetData(), Src, OutWidth * OutHeight * sizeof(FColor));
+	Mip.BulkData.Unlock();
+
+	return true;
+}
+
+void UWatermarkEditorFunctionLibrary::ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out)
+{
+	FImageUtils::ImageResize(SrcW, SrcH, Src, DestW, DestH, Out, true);
+}
+
+bool UWatermarkEditorFunctionLibrary::SaveAsset(UObject* AssetToSave)
+{
+	UPackage* Package = AssetToSave->GetOutermost();
+	if (!Package)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to get package from texture"));
+		return true;
+	}
+
+	Package->Modify();
+	//HostTexture->Modify();
+	AssetToSave->MarkPackageDirty();
+
+	FString PackageFilePath = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
+
+	if (UPackage::SavePackage(Package, AssetToSave, RF_Public | RF_Standalone, *PackageFilePath))
+	{
+		//UE_LOG(LogWatermarkEditor, Log, TEXT("EmbedQuantizedWatermark - Watermark embedded and saved to disk [%d x %d] using 3-bit LSB"), TargetWidth, TargetHeight);
+	}
+	else
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to save package to %s"), *PackageFilePath);
+	}
+	return false;
 }

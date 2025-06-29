@@ -15,37 +15,45 @@ class UEWATERMARKTOOLEDITOR_API UWatermarkEditorFunctionLibrary : public UBluepr
 	GENERATED_BODY()
 
 public:
-	
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
-	static UTexture2D* CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& PackagePath = "", const FString& AssetName = "", bool bOverwriteOriginal = true);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
-	static UTexture2D* BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha);
-
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|General")
 	static bool SaveAsset(UObject* AssetToSave);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+#pragma region TextureWatermark
+	
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
+	static UTexture2D* CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& PackagePath = "", const FString& AssetName = "", bool bOverwriteOriginal = true);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
+	static UTexture2D* BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static void EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static UTexture2D* ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
-	static void EmbedWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& WatermarkPattern, int32 VertexCount);
-	
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
-	static FString ExtractWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, int32 VertexCount, int32 DecimalDigits);
-
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
-	static bool VerifyWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold);
-
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static void EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
 
-	UFUNCTION(BlueprintCallable, Category="Watermark|Debug")
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static UTexture2D* ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture);
 
+#pragma endregion TextureWatermark
+	
+#pragma region StaticMeshWatermark
+	
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Static Mesh")
+	static void EmbedWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& WatermarkPattern, int32 VertexCount);
+	
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Static Mesh")
+	static FString ExtractWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, int32 VertexCount, int32 DecimalDigits);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Static Mesh")
+	static bool VerifyWatermarkDecimal(UStaticMesh* StaticMesh, const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold);
+
+#pragma endregion StaticMeshWatermark
+	
 private:
 
 	static bool ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight);
