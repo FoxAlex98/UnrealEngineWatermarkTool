@@ -16,26 +16,28 @@ class UEWATERMARKTOOLEDITOR_API UWatermarkEditorFunctionLibrary : public UBluepr
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category="Watermark Asset|General")
-	static bool SaveAsset(UObject* AssetToSave);
-
 #pragma region TextureWatermark
-	
-	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
-	static UTexture2D* CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& PackagePath = "", const FString& AssetName = "", bool bOverwriteOriginal = true);
 
+	static UTexture2D* CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark,
+	                                                 const FString& InPackagePath,
+	                                                 const FString& InAssetName, bool bOverwriteOriginal);
+	
 	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static UTexture2D* BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha);
 
+	static void ProcessTextureEmbedding(UTexture2D* HostTexture, UTexture2D* WatermarkTexture,
+	                                    TFunction<void(uint8*, int32, int32, const TArray<FColor>&, int32, int32)> EmbedLogic);
+
+	static UTexture2D* ProcessTextureExtraction(UTexture2D* WatermarkedTexture,
+		TFunction<void(uint8*, int32, int32, TArray<FColor>&)> ExtractLogic);
+
+	
 	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static void EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
-
 	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static UTexture2D* ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture);
-
 	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static void EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture);
-
 	UFUNCTION(BlueprintCallable, Category="Watermark Asset|Texture")
 	static UTexture2D* ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture);
 
@@ -56,6 +58,7 @@ public:
 	
 private:
 
+	static bool SaveAsset(UObject* AssetToSave);
 	static bool ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight);
 	static void ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out);
 	static UTexture2D* CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height);
