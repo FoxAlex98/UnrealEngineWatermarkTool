@@ -69,6 +69,9 @@ public:
 	bool bApplyWatermarkInScreenshot;
 	
 	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
+	bool bUseInvisibleWatermark;
+	
+	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
 	TSoftObjectPtr<UTexture2D> ImageOverlayTexture;
 
 	UFUNCTION()                                

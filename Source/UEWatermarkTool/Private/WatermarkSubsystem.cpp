@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
+#include "Utility/WatermarkAssetFunctionLibrary.h"
 #include "Utility/WatermarkFunctionLibrary.h"
 
 TSharedPtr<SConstraintCanvas> RootCanvas;
@@ -25,11 +26,6 @@ void UWatermarkSubsystem::OnSeamlessTravelStart(UWorld* World, const FString& UR
 {
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnSeamlessTravelStart"));
 	AddWatermarkToViewport();
-}
-
-void UWatermarkSubsystem::OnPostWorldCreation(UWorld* World)
-{
-	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnPostWorldCreation"));
 }
 
 void UWatermarkSubsystem::OnPostLoadMapWithWorld(UWorld* World)
@@ -49,23 +45,36 @@ void UWatermarkSubsystem::OnPostWorldInitialization(UWorld* World, FWorldInitial
 	}
 }
 
-void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
+void UWatermarkSubsystem::ApplyWatermarkToScreenshot(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
 {
-	UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Handling screenshot"));
-
 	const UWatermarkConfig* Settings = UWatermarkConfig::Get();
 	if (Settings && Settings->bApplyWatermarkInScreenshot)
 	{
 		if (Settings->ImageOverlayTexture.IsValid())
 		{
 			UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Try to apply watermark in image"));
-			ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
+
+			if (Settings->bUseInvisibleWatermark)
+			{
+				UWatermarkAssetFunctionLibrary::ApplyInvisibleTextureWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
+			}
+			else
+			{
+				UWatermarkAssetFunctionLibrary::ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
+			}
 		}
-	}
-	else
-	{
-		UE_LOG(LogWatermark, Error, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Image Overlay Texture not valid, saving a normal screenshot"));
-	}
+		else
+		{
+			UE_LOG(LogWatermark, Error, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Image Overlay Texture not valid, saving a normal screenshot"));
+		}
+	}	
+}
+
+void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const TArray<FColor>& InBitmap)
+{
+	UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Handling screenshot"));
+
+	ApplyWatermarkToScreenshot(Width, Height, InBitmap);
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
@@ -84,36 +93,17 @@ void UWatermarkSubsystem::OnScreenshotCaptured(int32 Width, int32 Height, const 
 	FFileHelper::SaveArrayToFile(PngData, *ScreenshotPath);
 }
 
-void UWatermarkSubsystem::OnViewportResizedEvent(FViewport* Viewport, unsigned I)
-{
-	UE_LOG(LogWatermark, Log, TEXT("Watermark Screenshot: ViewportResizedEvent"));
-}
-
-void UWatermarkSubsystem::OnScreenshotRequestProcessed()
-{
-	UE_LOG(LogWatermark, Log, TEXT("Watermark Screenshot: OnScreenshotRequestProcessed"));
-}
-
 void UWatermarkSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
 	FWorldDelegates::OnStartGameInstance.AddUObject(this, &UWatermarkSubsystem::OnGameStart);
-
 	FWorldDelegates::OnSeamlessTravelStart.AddUObject(this, &UWatermarkSubsystem::OnSeamlessTravelStart);
-
-	FWorldDelegates::OnPostWorldCreation.AddUObject(this, &UWatermarkSubsystem::OnPostWorldCreation);
 	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UWatermarkSubsystem::OnPostWorldInitialization);
-
-#if WITH_EDITOR
-	FWorldDelegates::OnPIEEnded.AddUObject(this, &UWatermarkSubsystem::OnGameEnd);
-#endif
-
-	//FViewport::ViewportResizedEvent.AddStatic(&UWatermarkSubsystem::OnViewportResizedEvent);
-	UGameViewportClient::OnScreenshotCaptured().AddUObject(this, &UWatermarkSubsystem::OnScreenshotCaptured);
-	//FScreenshotRequest::OnScreenshotRequestProcessed().AddStatic(&UWatermarkSubsystem::OnScreenshotRequestProcessed);
-
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UWatermarkSubsystem::OnPostLoadMapWithWorld);
+
+	UGameViewportClient::OnScreenshotCaptured().AddUObject(this, &UWatermarkSubsystem::OnScreenshotCaptured);
+
 	
 	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem Initialized (Editor or Game)"));
 }
@@ -145,6 +135,30 @@ void UWatermarkSubsystem::AddWatermarkToViewport()
 			AddUMGWatermark();
 			break;
 		}
+	}
+}
+
+void UWatermarkSubsystem::ForceAddWatermarkToViewport(EWidgetWatermarkType WidgetWatermarkTypeToShow)
+{
+	switch (WidgetWatermarkTypeToShow)
+	{
+	case EWidgetWatermarkType::SlateWatermark:
+		AddSlateWatermark();
+		break;
+	case EWidgetWatermarkType::UserWidgetWatermark:
+		AddUMGWatermark();
+	}
+}
+
+void UWatermarkSubsystem::ForceRemoveWatermarkToViewport(EWidgetWatermarkType WidgetWatermarkTypeToShow)
+{
+	switch (WidgetWatermarkTypeToShow)
+	{
+	case EWidgetWatermarkType::SlateWatermark:
+		RemoveSlateWatermark();
+		break;
+	case EWidgetWatermarkType::UserWidgetWatermark:
+		RemoveUMGWatermark();
 	}
 }
 
@@ -214,37 +228,23 @@ void UWatermarkSubsystem::AddUMGWatermark()
 	UMGWatermarkWidget->AddToViewport(UWatermarkConfig::Get()->WatermarkZOrder);
 }
 
-FString UWatermarkSubsystem::FindLatestScreenshot()
+void UWatermarkSubsystem::RemoveSlateWatermark()
 {
-	FString ScreenshotDir = FPaths::ProjectSavedDir() / TEXT("Screenshots/");
-
-#if WITH_EDITOR
-	ScreenshotDir.Append(TEXT("WindowsEditor/"));
-#else
-	ScreenshotDir.Append(TEXT("Windows/"));
-#endif
-	
-	FString SearchPattern = ScreenshotDir / TEXT("*.png");
-
-	TArray<FString> FoundFiles;
-	IFileManager::Get().FindFiles(FoundFiles, *SearchPattern, true, false);
-
-	FDateTime LatestTime = FDateTime::MinValue();
-	FString LatestFilePath;
-
-	for (const FString& FileName : FoundFiles)
+	if (RootCanvas.IsValid())
 	{
-		FString FullPath = ScreenshotDir / FileName;
-		FDateTime FileTime = IFileManager::Get().GetTimeStamp(*FullPath);
-
-		if (FileTime > LatestTime)
-		{
-			LatestTime = FileTime;
-			LatestFilePath = FullPath;
-		}
+		GEngine->GameViewport->RemoveViewportWidgetContent(RootCanvas.ToSharedRef());
+		RootCanvas.Reset();
+		SlateWatermarkWidget.Reset();
 	}
+}
 
-	return LatestFilePath;
+void UWatermarkSubsystem::RemoveUMGWatermark()
+{
+	if (UMGWatermarkWidget)
+	{
+		UMGWatermarkWidget->RemoveFromParent();
+		UMGWatermarkWidget = nullptr;
+	}
 }
 
 UWorld* UWatermarkSubsystem::GetGameWorldContextless()
@@ -265,72 +265,4 @@ void UWatermarkSubsystem::OnGameStart(UGameInstance* GameInstance)
 	
 	//Watermark UI
 	AddWatermarkToViewport();
-
-	//Watermark Gym
-	//UWatermarkFunctionLibrary::UpdateWatermarkGymEnableStatus(this);
-}
-
-void UWatermarkSubsystem::OnGameEnd(UGameInstance* GameInstance)
-{
-	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem ended in Editor"));
-}
-
-void UWatermarkSubsystem::OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World)
-{
-	UE_LOG(LogWatermark, Log, TEXT("WatermarkSubsystem OnLevelChange"));
-}
-
-void UWatermarkSubsystem::ApplyImageOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UTexture2D* WatermarkTexture)
-{
-	TArray<FColor>& Bitmap = const_cast<TArray<FColor>&>(InBitmap);
-	
-	FTexture2DMipMap& Mip = WatermarkTexture->GetPlatformData()->Mips[0];
-	FColor* SourceData = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
-	if (SourceData == nullptr)
-	{
-		UE_LOG(LogWatermark, Error, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Can't Extract Bulk Data from Watermark Texure"))
-		return;
-	}
-	const int32 ImgWidth = Mip.SizeX;
-	const int32 ImgHeight = Mip.SizeY;
-
-	for (int32 Y = 0; Y < ImgHeight; ++Y)
-	{
-		for (int32 X = 0; X < ImgWidth; ++X)
-		{
-			int32 TargetX = Width - ImgWidth + X - 10;
-			int32 TargetY = Height - ImgHeight + Y - 10;
-
-			int32 SrcIndex = Y * ImgWidth + X;
-			int32 DstIndex = TargetY * Width + TargetX;
-
-			if (InBitmap.IsValidIndex(DstIndex))
-			{
-				Bitmap[DstIndex] = AlphaBlend(SourceData[SrcIndex], Bitmap[DstIndex]);
-			}
-		}
-	}
-
-	Mip.BulkData.Unlock();
-
-	UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::ApplyImageOverlayWatermark - Watermark image blended"));
-}
-
-FColor UWatermarkSubsystem::AlphaBlend(const FColor& Src, const FColor& Dst)
-{
-	float SrcAlpha = Src.A / 255.0f;
-	float DstAlpha = Dst.A / 255.0f;
-	float OutAlpha = SrcAlpha + DstAlpha * (1.0f - SrcAlpha);
-
-	if (OutAlpha == 0.0f)
-	{
-		return FColor(0, 0, 0, 0);
-	}
-
-	uint8 R = FMath::Clamp(int32((Src.R * SrcAlpha + Dst.R * DstAlpha * (1.0f - SrcAlpha)) / OutAlpha), 0, 255);
-	uint8 G = FMath::Clamp(int32((Src.G * SrcAlpha + Dst.G * DstAlpha * (1.0f - SrcAlpha)) / OutAlpha), 0, 255);
-	uint8 B = FMath::Clamp(int32((Src.B * SrcAlpha + Dst.B * DstAlpha * (1.0f - SrcAlpha)) / OutAlpha), 0, 255);
-	uint8 A = FMath::Clamp(int32(OutAlpha * 255.0f), 0, 255);
-
-	return FColor(R, G, B, A);
 }

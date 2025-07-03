@@ -59,8 +59,6 @@ public:
 private:
 
 	static bool SaveAsset(UObject* AssetToSave);
-	static bool ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight);
-	static void ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out);
 	static UTexture2D* CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height);
 	static int32 GetSeedFromString(const FString& Seed);
 };

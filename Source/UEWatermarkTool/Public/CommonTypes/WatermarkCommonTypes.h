@@ -61,3 +61,13 @@ struct FWatermarkSlateWidgetData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark", meta=(EditCondition = "bIsEnabled", EditConditionHides))
 	FUIWatermarkBase CommonData;
 };
+
+UENUM(BlueprintType)
+enum class EWatermarkValidationResult : uint8
+{
+	Valid,
+	InvalidPointer,
+	InvalidDimensions,
+	WatermarkTooLarge,
+	InvalidArraySize
+};

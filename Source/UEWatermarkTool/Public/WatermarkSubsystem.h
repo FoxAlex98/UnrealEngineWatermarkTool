@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/GameViewportSubsystem.h"
+#include "CommonTypes/WatermarkCommonTypes.h"
 #include "WatermarkSubsystem.generated.h"
 
 /**
@@ -18,33 +19,37 @@ public:
 
 	//Events
 	void OnGameStart(UGameInstance* GameInstance);
-	void OnGameEnd(UGameInstance* GameInstance);
-	void OnLevelChange(ULevel* NewLevel, ULevel* OldLevel, UWorld* World);
-	static FColor AlphaBlend(const FColor& Src, const FColor& Dst);
 
 	void OnSeamlessTravelStart(UWorld* World, const FString& URL);
-	void OnPostWorldCreation(UWorld* World);
 	void OnPostLoadMapWithWorld(UWorld* World);
 	void OnPostWorldInitialization(UWorld* World, FWorldInitializationValues InitializationValue);
 
 	void OnScreenshotCaptured(int Width, int Height, const TArray<FColor>& InBitmap);
-	static void OnViewportResizedEvent(FViewport* Viewport, unsigned I);
-	static void OnScreenshotRequestProcessed();
+
+	//Subsystem
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
+	//Watermark	
 	void AddWatermarkToViewport();
+
+	UFUNCTION(BlueprintCallable, Category="Watermark")
+	void ForceAddWatermarkToViewport(EWidgetWatermarkType WidgetWatermarkTypeToShow);
+
+	UFUNCTION(BlueprintCallable, Category="Watermark")
+	void ForceRemoveWatermarkToViewport(EWidgetWatermarkType WidgetWatermarkTypeToShow);
 	
 private:
 	
 	void AddSlateWatermark();
 	void AddUMGWatermark();
 
-	static FString FindLatestScreenshot();
+	void RemoveSlateWatermark();
+	void RemoveUMGWatermark();
 
-	UWorld* GetGameWorldContextless();
+	void ApplyWatermarkToScreenshot(int32 Width, int32 Height, const TArray<FColor>& InBitmap);
 
-	static void ApplyImageOverlayWatermark(int32 Width, int32 Height, const TArray<FColor>& InBitmap, UTexture2D* WatermarkTexture);
+	static UWorld* GetGameWorldContextless();
 
 	UPROPERTY(Transient)
 	UWorld* CurrentGameWorldRef;

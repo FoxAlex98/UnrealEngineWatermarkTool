@@ -2,14 +2,12 @@
 
 #include "WatermarkEditorFunctionLibrary.h"
 
-#include "EditorAssetLibrary.h"
-#include "FileHelpers.h"
 #include "ImageUtils.h"
 #include "StaticMeshAttributes.h"
 #include "UEWatermarkToolEditor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "UObject/SavePackage.h"
 #include "Utility/WatermarkAlgorithmLibrary.h"
+#include "Utility/WatermarkAssetFunctionLibrary.h"
 
 UTexture2D* UWatermarkEditorFunctionLibrary::CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& InPackagePath, const FString& InAssetName, bool bOverwriteOriginal)
 {
@@ -157,8 +155,8 @@ UTexture2D* UWatermarkEditorFunctionLibrary::BlendTextures(UTexture2D* Base, UTe
 	TArray<FColor> BaseColors, OverlayColors;
 	int32 BaseW, BaseH, OverlayW, OverlayH;
 
-	if (!ReadTexturePixels(Base, BaseColors, BaseW, BaseH) ||
-		!ReadTexturePixels(Overlay, OverlayColors, OverlayW, OverlayH))
+	if (!UWatermarkAssetFunctionLibrary::ReadTexturePixels(Base, BaseColors, BaseW, BaseH) ||
+		!UWatermarkAssetFunctionLibrary::ReadTexturePixels(Overlay, OverlayColors, OverlayW, OverlayH))
 	{
 		UE_LOG(LogWatermarkEditor, Error, TEXT("BlendTextures - Failed to read texture data"));
 		return nullptr;
@@ -167,7 +165,7 @@ UTexture2D* UWatermarkEditorFunctionLibrary::BlendTextures(UTexture2D* Base, UTe
 	if (OverlayW >= BaseW || OverlayH >= BaseH)
 	{
 		TArray<FColor> ResizedOverlay;
-		ResizePixels(OverlayColors, OverlayW, OverlayH, BaseW, BaseH, ResizedOverlay);
+		UWatermarkAssetFunctionLibrary::ResizePixels(OverlayColors, OverlayW, OverlayH, BaseW, BaseH, ResizedOverlay);
 		OverlayColors = MoveTemp(ResizedOverlay);
 	}
 
@@ -223,56 +221,94 @@ bool UWatermarkEditorFunctionLibrary::SaveAsset(UObject* AssetToSave)
 }
 
 void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTexture, UTexture2D* WatermarkTexture,
-	TFunction<void(uint8*, int32, int32, const TArray<FColor>&, int32, int32)> EmbedLogic)
+    TFunction<void(uint8*, int32, int32, const TArray<FColor>&, int32, int32)> EmbedLogic)
 {
-	if (!HostTexture || !WatermarkTexture)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid textures"));
-		return;
-	}
+    if (!HostTexture || !WatermarkTexture)
+    {
+        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid textures"));
+        return;
+    }
 
-	FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
-	uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
-	const int32 HostWidth = HostMip.SizeX;
-	const int32 HostHeight = HostMip.SizeY;
-
-	TArray<FColor> WmColors;
-	int32 WmWidth, WmHeight;
-	if (!ReadTexturePixels(WatermarkTexture, WmColors, WmWidth, WmHeight))
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to read watermark pixels"));
-		HostMip.BulkData.Unlock();
-		return;
-	}
-
-	int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
-	int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
-	TArray<FColor> ResizedColors;
-
-	if (WmWidth > HostWidth || WmHeight > HostHeight)
-	{
-		ResizePixels(WmColors, WmWidth, WmHeight, TargetWidth, TargetHeight, ResizedColors);
-	}
-	else
-	{
-		ResizedColors = MoveTemp(WmColors);
-	}
-
-	EmbedLogic(HostPixels, HostWidth, HostHeight, ResizedColors, TargetWidth, TargetHeight);
-
-	HostMip.BulkData.Unlock();
-
-	HostTexture->Source.Init(
-		HostWidth,
-		HostHeight,
-		1,
-		1,
-		TSF_BGRA8,
-		(uint8*)HostPixels
-	);
+    FTexture2DMipMap& HostMip = HostTexture->GetPlatformData()->Mips[0];
+    const int32 HostWidth = HostMip.SizeX;
+    const int32 HostHeight = HostMip.SizeY;
 	
-	HostTexture->UpdateResource();
-	SaveAsset(HostTexture);
+    if (HostWidth <= 0 || HostHeight <= 0)
+    {
+        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid host texture dimensions: %dx%d"), 
+            HostWidth, HostHeight);
+        return;
+    }
+
+    TArray<uint8> HostData;
+    HostData.SetNum(HostWidth * HostHeight * 4); // 4 bytes per pixel (RGBA)
+    
+    {
+        uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+        if (!HostPixels)
+        {
+            UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to lock host texture"));
+            return;
+        }
+        FMemory::Memcpy(HostData.GetData(), HostPixels, HostData.Num());
+        HostMip.BulkData.Unlock();
+    }
+
+    TArray<FColor> WmColors;
+    int32 WmWidth, WmHeight;
+    if (!UWatermarkAssetFunctionLibrary::ReadTexturePixels(WatermarkTexture, WmColors, WmWidth, WmHeight))
+    {
+        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to read watermark pixels"));
+        return;
+    }
+
+    if (WmWidth <= 0 || WmHeight <= 0)
+    {
+        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid watermark dimensions: %dx%d"), 
+            WmWidth, WmHeight);
+        return;
+    }
+
+    int32 TargetWidth = FMath::Min(WmWidth, HostWidth);
+    int32 TargetHeight = FMath::Min(WmHeight, HostHeight);
+    TArray<FColor> ResizedColors;
+
+    if (WmWidth > HostWidth || WmHeight > HostHeight)
+    {
+        UWatermarkAssetFunctionLibrary::ResizePixels(WmColors, WmWidth, WmHeight, 
+            TargetWidth, TargetHeight, ResizedColors);
+    }
+    else
+    {
+        ResizedColors = MoveTemp(WmColors);
+    }
+
+    EmbedLogic(HostData.GetData(), HostWidth, HostHeight, ResizedColors, TargetWidth, TargetHeight);
+
+    {
+        uint8* DestPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
+        if (DestPixels)
+        {
+            FMemory::Memcpy(DestPixels, HostData.GetData(), HostData.Num());
+            HostMip.BulkData.Unlock();
+
+            HostTexture->Source.Init(
+                HostWidth,
+                HostHeight,
+                1,
+                1,
+                TSF_BGRA8,
+                HostData.GetData()
+            );
+
+            HostTexture->UpdateResource();
+            SaveAsset(HostTexture);
+        }
+        else
+        {
+            UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to lock texture for writing"));
+        }
+    }
 }
 
 UTexture2D* UWatermarkEditorFunctionLibrary::ProcessTextureExtraction(UTexture2D* WatermarkedTexture,
@@ -325,37 +361,6 @@ void UWatermarkEditorFunctionLibrary::EmbedTextureWatermarkWithRGBThresholdBit(U
 UTexture2D* UWatermarkEditorFunctionLibrary::ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture)
 {
 	return ProcessTextureExtraction(WatermarkedTexture, UWatermarkAlgorithmLibrary::RGBThresholdLSBExtract);
-}
-
-bool UWatermarkEditorFunctionLibrary::ReadTexturePixels(UTexture2D* Texture, TArray<FColor>& OutPixels, int32& OutWidth, int32& OutHeight)
-{
-	if (!Texture || !Texture->GetPlatformData() || Texture->GetPlatformData()->Mips.Num() == 0)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Invalid texture or platform data"));
-		return false;
-	}
-
-	FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
-	OutWidth = Mip.SizeX;
-	OutHeight = Mip.SizeY;
-
-	FColor* Src = static_cast<FColor*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
-	if (!Src)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ReadTexturePixels - Failed to lock mip data"));
-		return false;
-	}
-
-	OutPixels.SetNum(OutWidth * OutHeight);
-	FMemory::Memcpy(OutPixels.GetData(), Src, OutWidth * OutHeight * sizeof(FColor));
-	Mip.BulkData.Unlock();
-
-	return true;
-}
-
-void UWatermarkEditorFunctionLibrary::ResizePixels(const TArray<FColor>& Src, int32 SrcW, int32 SrcH, int32 DestW, int32 DestH, TArray<FColor>& Out)
-{
-	FImageUtils::ImageResize(SrcW, SrcH, Src, DestW, DestH, Out, true);
 }
 
 UTexture2D* UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height)
