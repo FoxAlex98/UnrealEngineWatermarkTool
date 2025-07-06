@@ -27,13 +27,6 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
 	static UTexture2D* GetDefaultWatermarkTexture();
-/*
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
-	static void SetGymMpcScalarValue(FName ParamName, float Value, UObject* WorldContextObject);
-
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool", meta=(WorldContext = "WorldContextObject"))
-	static void UpdateWatermarkGymEnableStatus(UObject* WorldContextObject);
-*/
 
 	UFUNCTION(BlueprintPure, Category = "Watermark")
 	static UUserWidget* CreateWatermarkUserWidgetFromConfig(APlayerController* PC, bool& bHasSucceeded);

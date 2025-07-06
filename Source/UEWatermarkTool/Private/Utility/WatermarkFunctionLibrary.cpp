@@ -24,7 +24,7 @@ FString UWatermarkFunctionLibrary::GetBuildIdString()
 
 UTexture2D* UWatermarkFunctionLibrary::GetDefaultWatermarkTexture()
 {
-	return UWatermarkConfigEditor::Get()->DefaultWatermarkTexture.LoadSynchronous();
+	return UWatermarkConfigEditor::Get()->AssetWatermarkTexture.LoadSynchronous();
 }
 
 /*

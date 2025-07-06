@@ -25,7 +25,8 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark", DisplayName="Watermark Z Order", meta=(ClampMin=0))
 	int32 WatermarkZOrder = INT32_MAX-10; //Unreal add 10 on add widget to viewport
 	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark")
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark",
+		meta=(EditCondition="WidgetWatermarkType == EWidgetWatermarkType::SlateWatermark", EditConditionHides))
 	FVector2D PreviewWindowSize = FVector2D(1280, 800);
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "UI Watermark",
@@ -58,21 +59,14 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category="Build ID", meta=(DisplayName="Build ID Preview"))
 	FString BuildIdPreview;
 
-	/*
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Material Watermark",
-		DisplayName="Gym Watermark Material Parameter Collection",
-		meta=(AllowedClasses="/Script/Engine.MaterialParameterCollection"))
-	FSoftObjectPath GymMPC = nullptr;
-	*/
-
-	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
+	UPROPERTY(EditAnywhere, config, Category = "Screenshot Watermark")
 	bool bApplyWatermarkInScreenshot;
 	
-	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
+	UPROPERTY(EditAnywhere, config, Category = "Screenshot Watermark")
 	bool bUseInvisibleWatermark;
 	
-	UPROPERTY(EditAnywhere, config, Category = "ImageOverlay")
-	TSoftObjectPtr<UTexture2D> ImageOverlayTexture;
+	UPROPERTY(EditAnywhere, config, Category = "Screenshot Watermark")
+	TSoftObjectPtr<UTexture2D> ScreenshotWatermark;
 
 	UFUNCTION()                                
 	FString GetBuildIdString() const;

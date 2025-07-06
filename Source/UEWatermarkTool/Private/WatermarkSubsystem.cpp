@@ -50,17 +50,17 @@ void UWatermarkSubsystem::ApplyWatermarkToScreenshot(int32 Width, int32 Height, 
 	const UWatermarkConfig* Settings = UWatermarkConfig::Get();
 	if (Settings && Settings->bApplyWatermarkInScreenshot)
 	{
-		if (Settings->ImageOverlayTexture.IsValid())
+		if (Settings->ScreenshotWatermark.IsValid())
 		{
 			UE_LOG(LogWatermark, Log, TEXT("UWatermarkSubsystem::OnScreenshotCaptured - Try to apply watermark in image"));
 
 			if (Settings->bUseInvisibleWatermark)
 			{
-				UWatermarkAssetFunctionLibrary::ApplyInvisibleTextureWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
+				UWatermarkAssetFunctionLibrary::ApplyInvisibleTextureWatermark(Width, Height, InBitmap, Settings->ScreenshotWatermark.LoadSynchronous());
 			}
 			else
 			{
-				UWatermarkAssetFunctionLibrary::ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ImageOverlayTexture.LoadSynchronous());
+				UWatermarkAssetFunctionLibrary::ApplyImageOverlayWatermark(Width, Height, InBitmap, Settings->ScreenshotWatermark.LoadSynchronous());
 			}
 		}
 		else

@@ -50,3 +50,8 @@ void ALightWatermarkActor::TryApplyWatermarkMaterial(ULightComponent* Target)
 
 	UE_LOG(LogWatermark, Log, TEXT("ALightWatermarkActor::TryApplyWatermarkMaterial - Applied to %s"), *Target->GetName());
 }
+
+FVector2D ALightWatermarkActor::GetLightSize_Implementation() const
+{
+	return FVector2D(100.f, 100.f);
+}

@@ -17,6 +17,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Watermark Light")
 	void TryApplyWatermarkMaterial(ULightComponent* Target);
 
+	UFUNCTION(BlueprintNativeEvent, Category = "Watermark")
+	FVector2D GetLightSize() const;
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Watermark Light|Config")

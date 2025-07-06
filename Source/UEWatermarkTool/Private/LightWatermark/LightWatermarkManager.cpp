@@ -55,30 +55,70 @@ void ALightWatermarkManager::SpawnLights()
 {
 	if (!LightClass)
 	{
-		UE_LOG(LogWatermark, Log, TEXT("ALightWatermarkManager::SpawnLights - Light Class is not valid"));
+		UE_LOG(LogWatermark, Warning, TEXT("ALightWatermarkManager::SpawnLights - Light Class is not valid"));
 		return;
-	};
+	}
 
 	FActorSpawnParameters Params;
 	Params.Owner = this;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const FVector Extent = BoxComponent->GetUnscaledBoxExtent();
-	const FVector GridSpacing = BoxComponent->GetScaledBoxExtent();
 	const FVector Origin = GetActorLocation();
 
-	for (float X = -Extent.X; X <= Extent.X; X += GridSpacing.X)
-	for (float Y = -Extent.Y; Y <= Extent.Y; Y += GridSpacing.Y)
+	int32 LightsX = NumLightsX;
+	int32 LightsY = NumLightsY;
+
+	if (PlacementMode == ELightPlacementMode::ByLightSize)
 	{
-		FVector Location = Origin + FVector(X, Y, 0);
-		ALightWatermarkActor* LightActor = GetWorld()->SpawnActor<ALightWatermarkActor>(LightClass, Location, SpawnedLightsRotator);
+		AActor* Temp = GetWorld()->SpawnActor<AActor>(LightClass, FVector::ZeroVector, FRotator::ZeroRotator);
+		ALightWatermarkActor* TestLight = Cast<ALightWatermarkActor>(Temp);
+
+		FVector2D LightSize = FVector2D(100, 100); // fallback
+		if (TestLight)
+		{
+			LightSize = TestLight->GetLightSize();
+			TestLight->Destroy();
+		}
+
+		LightsX = FMath::Max(2, FMath::CeilToInt((2 * Extent.X) / (LightSize.X * LightSpacingMultiplier)));
+		LightsY = FMath::Max(2, FMath::CeilToInt((2 * Extent.Y) / (LightSize.Y * LightSpacingMultiplier)));
+
+		UE_LOG(LogWatermark, Log, TEXT("ALightWatermarkManager::SpawnLights - Auto mode: LightSize %s, Grid %d x %d"),
+			*LightSize.ToString(), LightsX, LightsY);
+	}
+
+	for (int32 i = 0; i < LightsX; ++i)
+	for (int32 j = 0; j < LightsY; ++j)
+	{
+		const float RatioX = (LightsX == 1) ? 0.f : static_cast<float>(i) / (LightsX - 1);
+		const float RatioY = (LightsY == 1) ? 0.f : static_cast<float>(j) / (LightsY - 1);
+
+		const float X = FMath::Lerp(-Extent.X, Extent.X, RatioX);
+		const float Y = FMath::Lerp(-Extent.Y, Extent.Y, RatioY);
+		const FVector Location = Origin + FVector(X, Y, 0.f);
+
+		// Direction
+		FVector Normal = FVector::ZeroVector;
+		const float Epsilon = KINDA_SMALL_NUMBER;
+
+		if (FMath::IsNearlyEqual(FMath::Abs(X), Extent.X, Epsilon))
+			Normal.X = FMath::Sign(X);
+		else if (FMath::IsNearlyEqual(FMath::Abs(Y), Extent.Y, Epsilon))
+			Normal.Y = FMath::Sign(Y);
+
+		FRotator LightRotation = Normal.IsZero()
+			? FRotator(-90.f, 0.f, 0.f)
+			: Normal.Rotation();
+
+		ALightWatermarkActor* LightActor = GetWorld()->SpawnActor<ALightWatermarkActor>(LightClass, Location, LightRotation, Params);
 		if (LightActor)
 		{
-			//LightActor->SetIsTemporarilyHiddenInEditor(true);
 			LightActor->SetFlags(RF_Transient);
 			LightActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 			SpawnedLights.Add(LightActor);
-			UE_LOG(LogWatermark, Log, TEXT("ALightWatermarkManager::SpawnLights - Spawned at %s"), *Location.ToString());
+
+			UE_LOG(LogWatermark, Log, TEXT("ALightWatermarkManager::SpawnLights - Spawned at %s, rotation %s"), *Location.ToString(), *LightRotation.ToString());
 		}
 	}
 }

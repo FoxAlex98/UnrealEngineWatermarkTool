@@ -7,6 +7,13 @@
 #include "GameFramework/Actor.h"
 #include "LightWatermarkManager.generated.h"
 
+UENUM(BlueprintType)
+enum class ELightPlacementMode : uint8
+{
+	ByCount,
+	ByLightSize
+};
+
 class UBoxComponent;
 
 UCLASS(Abstract, HideCategories = ("Collision", "Rendering", "Input", "Actor", "LOD", "Cooking", "Replication", "Navigation", "HLOD", "Physics"))
@@ -18,6 +25,18 @@ public:
 	ALightWatermarkManager();
 
 	virtual void OnConstruction(const FTransform& Transform) override;
+	
+	UPROPERTY(EditAnywhere, Category = "Watermark|Light Placement")
+	ELightPlacementMode PlacementMode = ELightPlacementMode::ByCount;
+
+	UPROPERTY(EditAnywhere, meta=(EditCondition="PlacementMode == ELightPlacementMode::ByCount"))
+	int32 NumLightsX = 3;
+
+	UPROPERTY(EditAnywhere, meta=(EditCondition="PlacementMode == ELightPlacementMode::ByCount"))
+	int32 NumLightsY = 3;
+
+	UPROPERTY(EditAnywhere, meta=(EditCondition="PlacementMode == ELightPlacementMode::ByLightSize", ClampMin="0.1"))
+	float LightSpacingMultiplier = 1.0f;
 
 protected:
 	virtual void BeginPlay() override;

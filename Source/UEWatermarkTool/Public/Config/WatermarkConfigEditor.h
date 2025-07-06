@@ -40,6 +40,15 @@ public:
 		meta=(EditCondition="bAutoAddMetadataOnImport"))
 	TMap<FString, FString> AdditionalMetadata = {};
 
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Watermark")
-	TSoftObjectPtr<UTexture2D> DefaultWatermarkTexture;
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|Texture")
+	TSoftObjectPtr<UTexture2D> AssetWatermarkTexture;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|Static Mesh")
+	FString StaticMeshPattern;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|Static Mesh")
+	int32 StaticMeshVertexCount;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|SoundWave")
+	TSoftObjectPtr<UTexture2D> AssetWatermarkSound;
 };
