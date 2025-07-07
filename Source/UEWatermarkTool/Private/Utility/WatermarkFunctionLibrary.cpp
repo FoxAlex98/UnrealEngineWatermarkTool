@@ -11,12 +11,12 @@ bool UWatermarkFunctionLibrary::ShouldShowWatermarkUI()
 {
 	return UWatermarkConfig::Get()->EnableUIWatermark.ShouldBeEnabled();
 }
-
+/*
 bool UWatermarkFunctionLibrary::ShouldShowLightWatermark()
 {
 	return UWatermarkConfig::Get()->EnableLightWatermark.ShouldBeEnabled();
 }
-
+*/
 FString UWatermarkFunctionLibrary::GetBuildIdString()
 {
 	return UWatermarkConfig::Get()->GetBuildIdString();

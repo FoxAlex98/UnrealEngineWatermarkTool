@@ -24,7 +24,7 @@ TArray<TCHAR> UEasterEggFunctionLibrary::ConvertToMorse(const FString& InMessage
 			{
 				Output.Add(Symbol);
 			}
-			Output.Add(' '); // Gap between letters
+			Output.Add(' '); // It need a space between characters
 		}
 	}
 	return Output;

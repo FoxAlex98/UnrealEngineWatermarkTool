@@ -37,8 +37,8 @@ public:
 			EditCondition = "WidgetWatermarkType == EWidgetWatermarkType::SlateWatermark", EditConditionHides))
 	TArray<FWatermarkSlateWidgetData> WatermarkSlateWidgets;
 
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Light Watermark", DisplayName="Enable Light Watermark", meta=(ShowOnlyInnerProperties))
-	FWatermarkEnableStatus EnableLightWatermark;
+	//UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Light Watermark", DisplayName="Enable Light Watermark", meta=(ShowOnlyInnerProperties))
+	//FWatermarkEnableStatus EnableLightWatermark;
 
 	UPROPERTY(Config, EditAnywhere, Category="Build ID", meta=(ToolTip="Format build id manually"))
 	bool bFormatBuildIdManually = true;

@@ -2,230 +2,44 @@
 
 #include "WatermarkEditorFunctionLibrary.h"
 
-#include "ImageUtils.h"
 #include "StaticMeshAttributes.h"
 #include "UEWatermarkToolEditor.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/SavePackage.h"
 #include "Utility/WatermarkAlgorithmLibrary.h"
 #include "Utility/WatermarkAssetFunctionLibrary.h"
 
-UTexture2D* UWatermarkEditorFunctionLibrary::CreateDebugVisibleWatermarkedTexture(UTexture2D* Host, UTexture2D* Watermark, const FString& InPackagePath, const FString& InAssetName, bool bOverwriteOriginal)
+#pragma region TextureWatermark
+
+UTexture2D* UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height)
 {
-	if (!Host || !Watermark)
+	UTexture2D* OutTex = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+	if (!OutTex)
 	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("CreateDebugVisibleWatermarkedTexture - Invalid textures"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels - Failed to create texture"));
 		return nullptr;
 	}
 
-	FString PackagePath = InPackagePath;
-	FString AssetName = InAssetName;
+	OutTex->MipGenSettings = TMGS_NoMipmaps;
+	OutTex->SRGB = true;
+	OutTex->CompressionSettings = TC_Default;
+	OutTex->UpdateResource();
 
-	if (PackagePath.IsEmpty())
-	{
-		FString FullName = Host->GetOutermost()->GetName();
-		int32 LastSlash;
-		if (FullName.FindLastChar('/', LastSlash))
-			PackagePath = FullName.Left(LastSlash);
-		else
-			PackagePath = "/Game";
-	}
+	FTexture2DMipMap& Mip = OutTex->GetPlatformData()->Mips[0];
+	void* Dest = Mip.BulkData.Lock(LOCK_READ_WRITE);
+	FMemory::Memcpy(Dest, Pixels.GetData(), Pixels.Num() * sizeof(FColor));
+	Mip.BulkData.Unlock();
 
-	if (AssetName.IsEmpty())
-	{
-		AssetName = Host->GetName();
-	}
-
-	FTexture2DMipMap& HostMip = Host->GetPlatformData()->Mips[0];
-	FTexture2DMipMap& WmMip = Watermark->GetPlatformData()->Mips[0];
-
-	int32 HostW = HostMip.SizeX;
-	int32 HostH = HostMip.SizeY;
-	int32 WmW = WmMip.SizeX;
-	int32 WmH = WmMip.SizeY;
-
-	TArray<FColor> WmPixels;
-	if (WmW > HostW || WmH > HostH)
-	{
-		TArray<FColor> Src;
-		Src.SetNum(WmW * WmH);
-		FColor* RawWm = static_cast<FColor*>(WmMip.BulkData.Lock(LOCK_READ_ONLY));
-		FMemory::Memcpy(Src.GetData(), RawWm, Src.Num() * sizeof(FColor));
-		WmMip.BulkData.Unlock();
-
-		int32 TargetW = FMath::Min(WmW, HostW);
-		int32 TargetH = FMath::Min(WmH, HostH);
-		FImageUtils::ImageResize(WmW, WmH, Src, TargetW, TargetH, WmPixels, true);
-
-		WmW = TargetW;
-		WmH = TargetH;
-	}
-	else
-	{
-		FColor* RawWm = static_cast<FColor*>(WmMip.BulkData.Lock(LOCK_READ_ONLY));
-		WmPixels.SetNum(WmW * WmH);
-		FMemory::Memcpy(WmPixels.GetData(), RawWm, WmW * WmH * sizeof(FColor));
-		WmMip.BulkData.Unlock();
-	}
-
-	FColor* HostPixels = static_cast<FColor*>(HostMip.BulkData.Lock(LOCK_READ_ONLY));
-	TArray<FColor> OutPixels;
-	OutPixels.SetNum(HostW * HostH);
-	FMemory::Memcpy(OutPixels.GetData(), HostPixels, HostW * HostH * sizeof(FColor));
-	HostMip.BulkData.Unlock();
-
-	const int32 StartX = HostW - WmW;
-	const int32 StartY = HostH - WmH;
-
-	for (int32 y = 0; y < WmH; ++y)
-	{
-		for (int32 x = 0; x < WmW; ++x)
-		{
-			const int32 wmIdx = y * WmW + x;
-			const int32 hostIdx = (StartY + y) * HostW + (StartX + x);
-
-			const FColor& wmColor = WmPixels[wmIdx];
-			if (wmColor.R + wmColor.G + wmColor.B < 750)
-			{
-				OutPixels[hostIdx] = FColor::Black;
-			}
-		}
-	}
-
-	UPackage* Package = CreatePackage(*FPaths::Combine(PackagePath, AssetName));
-	UTexture2D* NewTex = nullptr;
-
-	if (bOverwriteOriginal)
-	{
-		NewTex = Host;
-		NewTex->Modify();
-		NewTex->GetPlatformData()->Mips.Empty();
-	}
-	else
-	{
-		NewTex = NewObject<UTexture2D>(Package, *AssetName, RF_Public | RF_Standalone);
-		NewTex->AddToRoot();
-		NewTex->SetPlatformData(new FTexturePlatformData());
-		NewTex->GetPlatformData()->SizeX = HostW;
-		NewTex->GetPlatformData()->SizeY = HostH;
-		NewTex->GetPlatformData()->PixelFormat = PF_B8G8R8A8;
-	}
-
-	FTexture2DMipMap* Mip = new FTexture2DMipMap();
-	Mip->SizeX = HostW;
-	Mip->SizeY = HostH;
-	Mip->BulkData.Lock(LOCK_READ_WRITE);
-	void* Data = Mip->BulkData.Realloc(HostW * HostH * sizeof(FColor));
-	FMemory::Memcpy(Data, OutPixels.GetData(), HostW * HostH * sizeof(FColor));
-	Mip->BulkData.Unlock();
-
-	NewTex->Source.Init(
-		HostW,
-		HostH,
-		1,
-		1,
-		TSF_BGRA8,
-		(uint8*)OutPixels.GetData()
-	);
-
-	NewTex->GetPlatformData()->Mips.Add(Mip);
-	NewTex->SRGB = true;
-	NewTex->MipGenSettings = TMGS_NoMipmaps;
-	NewTex->CompressionSettings = TC_Default;
-	NewTex->UpdateResource();
-
-	FAssetRegistryModule::AssetCreated(NewTex);
-	NewTex->MarkPackageDirty();
-
-	FString PackageFilePath = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
-	UPackage::SavePackage(Package, NewTex, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *PackageFilePath);
-
-	UE_LOG(LogWatermarkEditor, Log, TEXT("CreateDebugVisibleWatermarkedTexture - Texture %s saved to %s"), *AssetName, *PackageFilePath);
-
-	return NewTex;
-}
-
-UTexture2D* UWatermarkEditorFunctionLibrary::BlendTextures(UTexture2D* Base, UTexture2D* Overlay, float Alpha)
-{
-	if (!Base || !Overlay || Alpha < 0.f || Alpha > 1.f)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("BlendTextures - Invalid input"));
-		return nullptr;
-	}
-
-	TArray<FColor> BaseColors, OverlayColors;
-	int32 BaseW, BaseH, OverlayW, OverlayH;
-
-	if (!UWatermarkAssetFunctionLibrary::ReadTexturePixels(Base, BaseColors, BaseW, BaseH) ||
-		!UWatermarkAssetFunctionLibrary::ReadTexturePixels(Overlay, OverlayColors, OverlayW, OverlayH))
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("BlendTextures - Failed to read texture data"));
-		return nullptr;
-	}
-
-	if (OverlayW >= BaseW || OverlayH >= BaseH)
-	{
-		TArray<FColor> ResizedOverlay;
-		UWatermarkAssetFunctionLibrary::ResizePixels(OverlayColors, OverlayW, OverlayH, BaseW, BaseH, ResizedOverlay);
-		OverlayColors = MoveTemp(ResizedOverlay);
-	}
-
-	TArray<FColor> ResultColors = BaseColors;
-
-	for (int32 i = 0; i < BaseColors.Num(); ++i)
-	{
-		const FColor& A = BaseColors[i];
-		const FColor& B = OverlayColors[i];
-
-		uint8 R = FMath::Lerp(A.R, B.R, Alpha);
-		uint8 G = FMath::Lerp(A.G, B.G, Alpha);
-		uint8 Bc = FMath::Lerp(A.B, B.B, Alpha);
-		uint8 AOut = FMath::Lerp(A.A, B.A, Alpha);
-
-		ResultColors[i] = FColor(R, G, Bc, AOut);
-	}
-
-	UTexture2D* OutTex = CreateTransientTextureFromPixels(ResultColors, BaseW, BaseH);
-
-	if (OutTex)
-	{
-		UE_LOG(LogWatermarkEditor, Log, TEXT("BlendTextures - Blended %dx%d overlay"), OverlayW, OverlayH);
-	}
+	OutTex->UpdateResource();
 
 	return OutTex;
 }
 
-bool UWatermarkEditorFunctionLibrary::SaveAsset(UObject* AssetToSave)
-{
-	UPackage* Package = AssetToSave->GetOutermost();
-	if (!Package)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to get package from texture"));
-		return true;
-	}
-
-	Package->Modify();
-	//HostTexture->Modify();
-	AssetToSave->MarkPackageDirty();
-
-	FString PackageFilePath = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
-
-	if (UPackage::SavePackage(Package, AssetToSave, RF_Public | RF_Standalone, *PackageFilePath))
-	{
-		//UE_LOG(LogWatermarkEditor, Log, TEXT("EmbedQuantizedWatermark - Watermark embedded and saved to disk [%d x %d] using 3-bit LSB"), TargetWidth, TargetHeight);
-	}
-	else
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("EmbedQuantizedWatermark - Failed to save package to %s"), *PackageFilePath);
-	}
-	return false;
-}
-
-void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTexture, UTexture2D* WatermarkTexture,
+void UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding(UTexture2D* HostTexture, UTexture2D* WatermarkTexture,
     TFunction<void(uint8*, int32, int32, const TArray<FColor>&, int32, int32)> EmbedLogic)
 {
     if (!HostTexture || !WatermarkTexture)
     {
-        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid textures"));
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Invalid textures"));
         return;
     }
 
@@ -235,7 +49,7 @@ void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTe
 	
     if (HostWidth <= 0 || HostHeight <= 0)
     {
-        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid host texture dimensions: %dx%d"), 
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Invalid host texture dimensions: %dx%d"), 
             HostWidth, HostHeight);
         return;
     }
@@ -247,7 +61,7 @@ void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTe
         uint8* HostPixels = static_cast<uint8*>(HostMip.BulkData.Lock(LOCK_READ_WRITE));
         if (!HostPixels)
         {
-            UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to lock host texture"));
+            UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Failed to lock host texture"));
             return;
         }
         FMemory::Memcpy(HostData.GetData(), HostPixels, HostData.Num());
@@ -258,13 +72,13 @@ void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTe
     int32 WmWidth, WmHeight;
     if (!UWatermarkAssetFunctionLibrary::ReadTexturePixels(WatermarkTexture, WmColors, WmWidth, WmHeight))
     {
-        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to read watermark pixels"));
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Failed to read watermark pixels"));
         return;
     }
 
     if (WmWidth <= 0 || WmHeight <= 0)
     {
-        UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Invalid watermark dimensions: %dx%d"), 
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Invalid watermark dimensions: %dx%d"), 
             WmWidth, WmHeight);
         return;
     }
@@ -306,17 +120,17 @@ void UWatermarkEditorFunctionLibrary::ProcessTextureEmbedding(UTexture2D* HostTe
         }
         else
         {
-            UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureEmbedding - Failed to lock texture for writing"));
+            UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkEmbedding - Failed to lock texture for writing"));
         }
     }
 }
 
-UTexture2D* UWatermarkEditorFunctionLibrary::ProcessTextureExtraction(UTexture2D* WatermarkedTexture,
+UTexture2D* UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkExtraction(UTexture2D* WatermarkedTexture,
 	TFunction<void(uint8*, int32, int32, TArray<FColor>&)> ExtractLogic)
 {
 	if (!WatermarkedTexture)
 	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureExtraction - Invalid texture"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkExtraction - Invalid texture"));
 		return nullptr;
 	}
 
@@ -327,7 +141,7 @@ UTexture2D* UWatermarkEditorFunctionLibrary::ProcessTextureExtraction(UTexture2D
 	uint8* Pixels = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_ONLY));
 	if (!Pixels)
 	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("ProcessTextureExtraction - Failed to lock mip data"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ProcessTextureWatermarkExtraction - Failed to lock mip data"));
 		return nullptr;
 	}
 
@@ -343,60 +157,36 @@ UTexture2D* UWatermarkEditorFunctionLibrary::ProcessTextureExtraction(UTexture2D
 
 // BlueprintCallable wrappers
 
-void UWatermarkEditorFunctionLibrary::EmbedQuantizedWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+void UWatermarkEditorFunctionLibrary::EmbedQuantizedTextureWatermark(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
 {
-	ProcessTextureEmbedding(HostTexture, WatermarkTexture, UWatermarkAlgorithmLibrary::QuantizedLSBEmbed);
+	ProcessTextureWatermarkEmbedding(HostTexture, WatermarkTexture, UWatermarkAlgorithmLibrary::QuantizedLSBEmbed);
 }
 
-UTexture2D* UWatermarkEditorFunctionLibrary::ExtractQuantizedWatermark(UTexture2D* WatermarkedTexture)
+UTexture2D* UWatermarkEditorFunctionLibrary::ExtractQuantizedTextureWatermark(UTexture2D* WatermarkedTexture)
 {
-	return ProcessTextureExtraction(WatermarkedTexture, UWatermarkAlgorithmLibrary::QuantizedLSBExtract);
+	return ProcessTextureWatermarkExtraction(WatermarkedTexture, UWatermarkAlgorithmLibrary::QuantizedLSBExtract);
 }
 
-void UWatermarkEditorFunctionLibrary::EmbedTextureWatermarkWithRGBThresholdBit(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
+void UWatermarkEditorFunctionLibrary::EmbedTextureWatermarkRGBThreshold(UTexture2D* HostTexture, UTexture2D* WatermarkTexture)
 {
-	ProcessTextureEmbedding(HostTexture, WatermarkTexture, UWatermarkAlgorithmLibrary::RGBThresholdLSBEmbed);
+	ProcessTextureWatermarkEmbedding(HostTexture, WatermarkTexture, UWatermarkAlgorithmLibrary::RGBThresholdLSBEmbed);
 }
 
-UTexture2D* UWatermarkEditorFunctionLibrary::ExtractTextureWatermarkUsingRGBThresholdBit(UTexture2D* WatermarkedTexture)
+UTexture2D* UWatermarkEditorFunctionLibrary::ExtractTextureWatermarkRGBThreshold(UTexture2D* WatermarkedTexture)
 {
-	return ProcessTextureExtraction(WatermarkedTexture, UWatermarkAlgorithmLibrary::RGBThresholdLSBExtract);
+	return ProcessTextureWatermarkExtraction(WatermarkedTexture, UWatermarkAlgorithmLibrary::RGBThresholdLSBExtract);
 }
 
-UTexture2D* UWatermarkEditorFunctionLibrary::CreateTransientTextureFromPixels(const TArray<FColor>& Pixels, int32 Width, int32 Height)
-{
-	UTexture2D* OutTex = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
-	if (!OutTex)
-	{
-		UE_LOG(LogWatermarkEditor, Error, TEXT("CreateTransientTextureFromPixels - Failed to create texture"));
-		return nullptr;
-	}
+#pragma endregion TextureWatermark
 
-	OutTex->MipGenSettings = TMGS_NoMipmaps;
-	OutTex->SRGB = true;
-	OutTex->CompressionSettings = TC_Default;
-	OutTex->UpdateResource();
+#pragma region StaticMeshWatermark
 
-	FTexture2DMipMap& Mip = OutTex->GetPlatformData()->Mips[0];
-	void* Dest = Mip.BulkData.Lock(LOCK_READ_WRITE);
-	FMemory::Memcpy(Dest, Pixels.GetData(), Pixels.Num() * sizeof(FColor));
-	Mip.BulkData.Unlock();
-
-	OutTex->UpdateResource();
-
-	return OutTex;
-}
-
-void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(
-	UStaticMesh* StaticMesh,
-	const FString& Seed,
-	const FString& WatermarkPattern,
-	int32 VertexCount
-)
+void UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark(UStaticMesh* StaticMesh,
+	const FString& Seed, const FString& WatermarkPattern, int32 VertexCount)
 {
 	if (!StaticMesh || Seed.IsEmpty() || WatermarkPattern.IsEmpty())
 	{
-		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: Invalid parameters"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark: Invalid parameters"));
 		return;
 	}
 
@@ -405,14 +195,14 @@ void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(
 	float WatermarkValue = FCString::Atof(*FString::Printf(TEXT("0.%s"), *NewWatermarkPattern));
 	if (WatermarkValue == 0.f)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Watermark value evaluated to 0"));
+		UE_LOG(LogWatermarkEditor, Warning, TEXT("UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark: Watermark value evaluated to 0"));
 	}
 
 	StaticMesh->Modify();
 	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
 	if (!MeshDesc)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EmbedWatermarkDecimal: MeshDescription is missing"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark: MeshDescription is missing"));
 		return;
 	}
 
@@ -425,7 +215,7 @@ void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(
 
 	if (VertexIDs.Num() < VertexCount)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EmbedWatermarkDecimal: Not enough vertices"));
+		UE_LOG(LogWatermarkEditor, Warning, TEXT("UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark: Not enough vertices"));
 		VertexCount = VertexIDs.Num();
 	}
 
@@ -444,29 +234,25 @@ void UWatermarkEditorFunctionLibrary::EmbedWatermarkDecimal(
 
 	StaticMesh->CommitMeshDescription(0);
 	StaticMesh->Build(false);
-	StaticMesh->MarkPackageDirty();
+	bool _ = StaticMesh->MarkPackageDirty();
 	SaveAsset(StaticMesh);
 	
-	UE_LOG(LogTemp, Log, TEXT("EmbedWatermarkDecimal: Watermark '%s' embedded in %d vertices"), *WatermarkPattern, VertexCount);
+	UE_LOG(LogWatermarkEditor, Log, TEXT("UWatermarkEditorFunctionLibrary::EmbedStaticMeshVertexPatternWatermark: Watermark '%s' embedded in %d vertices"), *WatermarkPattern, VertexCount);
 }
 
-FString UWatermarkEditorFunctionLibrary::ExtractWatermarkDecimal(
-	UStaticMesh* StaticMesh,
-	const FString& Seed,
-	int32 VertexCount,
-	int32 DecimalDigits
-)
+FString UWatermarkEditorFunctionLibrary::ExtractStaticMeshVertexPatternWatermark(UStaticMesh* StaticMesh,
+	const FString& Seed, int32 VertexCount, int32 DecimalDigits)
 {
 	if (!StaticMesh || Seed.IsEmpty() || DecimalDigits <= 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: Invalid parameters"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ExtractStaticMeshVertexPatternWatermark: Invalid parameters"));
 		return FString();
 	}
 
 	FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
 	if (!MeshDesc)
 	{
-		UE_LOG(LogTemp, Error, TEXT("ExtractWatermarkDecimal: MeshDescription missing"));
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::ExtractStaticMeshVertexPatternWatermark: MeshDescription missing"));
 		return FString();
 	}
 
@@ -501,28 +287,23 @@ FString UWatermarkEditorFunctionLibrary::ExtractWatermarkDecimal(
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ExtractWatermarkDecimal: Extracted = %s"), *Collected);
+	UE_LOG(LogWatermarkEditor, Log, TEXT("UWatermarkEditorFunctionLibrary::ExtractStaticMeshVertexPatternWatermark: Extracted = %s"), *Collected);
 	return Collected;
 }
 
-bool UWatermarkEditorFunctionLibrary::VerifyWatermarkDecimal(
-    UStaticMesh* StaticMesh,
-    const FString& Seed,
-    const FString& ExpectedPattern,
-    int32 VertexCount,
-    float ConfidenceThreshold
-)
+bool UWatermarkEditorFunctionLibrary::VerifyStaticMeshVertexPatternWatermark(UStaticMesh* StaticMesh,
+    const FString& Seed, const FString& ExpectedPattern, int32 VertexCount, float ConfidenceThreshold)
 {
     if (!StaticMesh || Seed.IsEmpty() || ExpectedPattern.IsEmpty() || ConfidenceThreshold <= 0.f)
     {
-        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: Invalid parameters"));
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::VerifyStaticMeshVertexPatternWatermark: Invalid parameters"));
         return false;
     }
 
     FMeshDescription* MeshDesc = StaticMesh->GetMeshDescription(0);
     if (!MeshDesc)
     {
-        UE_LOG(LogTemp, Error, TEXT("VerifyWatermarkDecimal: MeshDescription missing"));
+        UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::VerifyStaticMeshVertexPatternWatermark: MeshDescription missing"));
         return false;
     }
 
@@ -561,12 +342,40 @@ bool UWatermarkEditorFunctionLibrary::VerifyWatermarkDecimal(
     }
 
     float Confidence = static_cast<float>(Matches) / static_cast<float>(VertexCount);
-    UE_LOG(LogTemp, Log, TEXT("VerifyWatermarkDecimal: Match ratio = %.2f%% (%d/%d)"), Confidence * 100.0f, Matches, VertexCount);
+    UE_LOG(LogWatermarkEditor, Log, TEXT("UWatermarkEditorFunctionLibrary::VerifyStaticMeshVertexPatternWatermark: Match ratio = %.2f%% (%d/%d)"), Confidence * 100.0f, Matches, VertexCount);
 
     return Confidence >= ConfidenceThreshold;
 }
 
+#pragma endregion StaticMeshWatermark
 
+bool UWatermarkEditorFunctionLibrary::SaveAsset(UObject* AssetToSave)
+{
+	UPackage* Package = AssetToSave->GetPackage();
+	if (!Package)
+	{
+		UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::SaveAsset - Failed to get package from asset %s"), *AssetToSave->GetName());
+		return true;
+	}
+
+	Package->Modify();
+	bool _ = AssetToSave->MarkPackageDirty();
+
+	FString PackageFilePath = FPackageName::LongPackageNameToFilename(Package->GetName(), FPackageName::GetAssetPackageExtension());
+
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+	SaveArgs.Error = GError;
+
+	if (UPackage::SavePackage(Package, AssetToSave, *PackageFilePath, SaveArgs))
+	{
+		UE_LOG(LogWatermarkEditor, Log, TEXT("UWatermarkEditorFunctionLibrary::SaveAsset - Asset %s correctly saved"), *AssetToSave->GetName());
+		return true;		
+	}
+	
+	UE_LOG(LogWatermarkEditor, Error, TEXT("UWatermarkEditorFunctionLibrary::SaveAsset - Failed to save package to %s"), *PackageFilePath);
+	return false;
+}
 
 int32 UWatermarkEditorFunctionLibrary::GetSeedFromString(const FString& Seed)
 {

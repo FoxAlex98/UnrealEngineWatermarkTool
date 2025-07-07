@@ -3,35 +3,26 @@
 
 #include "Utility/WatermarkAlgorithmLibrary.h"
 
-void UWatermarkAlgorithmLibrary::QuantizedLSBEmbed(uint8* HostPixels, int32 HostWidth, int32 HostHeight, 
-    const TArray<FColor>& WatermarkColors, int32 TargetWidth, int32 TargetHeight)
+void UWatermarkAlgorithmLibrary::QuantizedLSBEmbed(uint8* HostPixels, int32 HostWidth, int32 HostHeight, const TArray<FColor>& WatermarkColors, int32 TargetWidth, int32 TargetHeight)
 {
-    if (TargetWidth > HostWidth || TargetHeight > HostHeight)
-    {
-        UE_LOG(LogTemp, Error, TEXT("QuantizedLSBEmbed: Watermark dimensions exceed host dimensions"));
-        return;
-    }
+	const int32 StartX = HostWidth - TargetWidth;
+	const int32 StartY = HostHeight - TargetHeight;
 
-    const int32 StartX = FMath::Max(0, HostWidth - TargetWidth);
-    const int32 StartY = FMath::Max(0, HostHeight - TargetHeight);
+	for (int32 y = 0; y < TargetHeight; ++y)
+	{
+		for (int32 x = 0; x < TargetWidth; ++x)
+		{
+			const int32 HostIdx = (StartY + y) * HostWidth + (StartX + x);
+			const int32 WmIdx = y * TargetWidth + x;
 
-    const int32 BytesPerPixel = 4;
+			uint8 f = HostPixels[HostIdx];
+			uint8 w = WatermarkColors[WmIdx].R;
+			uint8 scaledW = FMath::Clamp(w >> 5, 0, 7);
+			uint8 fw = 8 * (f / 8) + scaledW;
 
-    for (int32 y = 0; y < TargetHeight; ++y)
-    {
-        for (int32 x = 0; x < TargetWidth; ++x)
-        {
-            const int32 HostIdx = ((StartY + y) * HostWidth + (StartX + x)) * BytesPerPixel;
-            const int32 WmIdx = y * TargetWidth + x;
-
-            uint8 f = HostPixels[HostIdx];
-            uint8 w = WatermarkColors[WmIdx].R;
-            uint8 scaledW = FMath::Clamp(w >> 5, 0, 7);
-            uint8 fw = 8 * (f / 8) + scaledW;
-
-            HostPixels[HostIdx] = fw;
-        }
-    }
+			HostPixels[HostIdx] = fw;
+		}
+	}
 }
 
 void UWatermarkAlgorithmLibrary::QuantizedLSBExtract(uint8* Pixels, int32 Width, int32 Height, TArray<FColor>& OutPixels)

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 def extract_invisible_watermark(image_path, watermark_size = None):
     """
     Extract Invisible Watermark From a PNG Image.
-    
+    You should use to check if an invisible Watermark is embedded in a Screenshot
     Args:
         image_path: watermarked PNG image path
         watermark_size: Tuple (width, height) watermark dimensions, if is None use image dimensions as watermark dimensions

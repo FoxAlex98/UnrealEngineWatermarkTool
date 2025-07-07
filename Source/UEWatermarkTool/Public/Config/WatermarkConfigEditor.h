@@ -6,6 +6,27 @@
 #include "Engine/DeveloperSettings.h"
 #include "WatermarkConfigEditor.generated.h"
 
+USTRUCT(BlueprintType)
+struct FStaticMeshWatermarkInfo
+{
+	GENERATED_BODY()
+
+public:
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark Asset|Static Mesh")
+	FString Seed = FString("Test");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark Asset|Static Mesh")
+	FString Pattern = FString("12345");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark Asset|Static Mesh", meta=(ClampMin="0", UIMin="0"))
+	int32 VertexCount = 100;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Watermark Asset|Static Mesh", DisplayName="Confidence Threshold (Verify Only)",
+		meta=(ClampMin="0.0", ClampMax="1.0", UIMin="0.0", UIMax="1.0"))
+	float ConfidenceThreshold = 0.8f;
+};
+
 /**
  * 
  */
@@ -44,11 +65,5 @@ public:
 	TSoftObjectPtr<UTexture2D> AssetWatermarkTexture;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|Static Mesh")
-	FString StaticMeshPattern;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|Static Mesh")
-	int32 StaticMeshVertexCount;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Asset Watermark|SoundWave")
-	TSoftObjectPtr<UTexture2D> AssetWatermarkSound;
+	FStaticMeshWatermarkInfo AssetWatermarkStaticMeshInfo;
 };

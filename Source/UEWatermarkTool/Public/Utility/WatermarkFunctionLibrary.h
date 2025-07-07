@@ -19,8 +19,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
 	static bool ShouldShowWatermarkUI();
 	
-	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
-	static bool ShouldShowLightWatermark();
+	//UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
+	//static bool ShouldShowLightWatermark();
 	
 	UFUNCTION(BlueprintCallable, Category = "Watermark Tool")
 	static FString GetBuildIdString();
