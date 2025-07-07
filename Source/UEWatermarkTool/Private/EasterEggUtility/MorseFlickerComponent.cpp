@@ -54,24 +54,24 @@ void UMorseFlickerComponent::HandleNextSymbol()
 		return;
 	}
 
-	TCHAR Symbol = MorseSequence[CurrentIndex];
+	const TCHAR Symbol = MorseSequence[CurrentIndex];
 	float Duration;
 
 	if (bIsLightOnPhase)
 	{
 		if (Symbol == '.')
 		{
-			SetLightState(true);
+			UpdateLightState(true);
 			Duration = GetDuration(EMorseDurationUnit::Dot);
 		}
 		else if (Symbol == '-')
 		{
-			SetLightState(true);
+			UpdateLightState(true);
 			Duration = GetDuration(EMorseDurationUnit::Dash);
 		}
 		else
 		{
-			SetLightState(false);
+			UpdateLightState(false);
 			Duration = (Symbol == '/') ? GetDuration(EMorseDurationUnit::NextWord) : GetDuration(EMorseDurationUnit::NextLetter);
 			CurrentIndex++;
 			GetWorld()->GetTimerManager().SetTimer(TimerHandle_Flicker, this, &UMorseFlickerComponent::HandleNextSymbol, Duration, false);
@@ -83,14 +83,25 @@ void UMorseFlickerComponent::HandleNextSymbol()
 	}
 	else
 	{
-		SetLightState(false);
+		UpdateLightState(false);
 		bIsLightOnPhase = true;
 		CurrentIndex++;
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle_Flicker, this, &UMorseFlickerComponent::HandleNextSymbol, GetDuration(EMorseDurationUnit::NextCharacter), false);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle_Flicker, this, &UMorseFlickerComponent::HandleNextSymbol, GetDuration(EMorseDurationUnit::NextSymbol), false);
 	}
 }
 
-void UMorseFlickerComponent::SetLightState(bool bIsEnabled)
+void UMorseFlickerComponent::UpdateLightState(const bool bIsEnabled) const
+{
+	SetLightState(bIsEnabled);
+	OnMorseFlickerStateChanged.Broadcast(bIsEnabled);
+}
+
+void UMorseFlickerComponent::SetLightState_Implementation(bool bIsEnabled) const
+{
+	SetLightVisibility(bIsEnabled);
+}
+
+void UMorseFlickerComponent::SetLightVisibility(const bool bIsEnabled) const
 {
 	if (TargetLight)
 	{
@@ -98,8 +109,8 @@ void UMorseFlickerComponent::SetLightState(bool bIsEnabled)
 	}
 }
 
-float UMorseFlickerComponent::GetDuration(EMorseDurationUnit DurationUnit)
+float UMorseFlickerComponent::GetDuration(const EMorseDurationUnit DurationUnit)
 {
-	float Velocity = 1.2f / static_cast<float>(WordsPerMinute);
+	const float Velocity = 1.2f / static_cast<float>(WordsPerMinute);
 	return MorseSymbolDurationMap[DurationUnit] * Velocity;
 }

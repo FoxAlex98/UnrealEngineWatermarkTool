@@ -11,7 +11,7 @@ enum class EMorseDurationUnit : uint8
 {
 	Dot,
 	Dash,
-	NextCharacter,
+	NextSymbol,
 	NextLetter,
 	NextWord,
 };
@@ -21,8 +21,16 @@ class UEWATERMARKTOOL_API UMorseFlickerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMorseFlickerStateChanged, bool, bIsEnabled);
+
 public:
 	UMorseFlickerComponent();
+
+	UFUNCTION(BlueprintCallable, Category = "Morse")
+	void StartFlickering();
+	
+	UPROPERTY(BlueprintAssignable, Category = "Morse")
+	FOnMorseFlickerStateChanged OnMorseFlickerStateChanged;
 
 protected:
 	virtual void BeginPlay() override;
@@ -39,6 +47,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Morse", DisplayName="Words Per Minute (WPM)")
 	int32 WordsPerMinute = 20;
 
+	UFUNCTION(BlueprintNativeEvent, Category = "Morse")
+	void SetLightState(bool bIsEnabled) const;
+
 private:
 
 	bool bIsLightOnPhase = true;
@@ -46,7 +57,7 @@ private:
 	TMap<EMorseDurationUnit, int32> MorseSymbolDurationMap = {
 		{EMorseDurationUnit::Dot, 1},
 		{EMorseDurationUnit::Dash, 3},
-		{EMorseDurationUnit::NextCharacter, 1},
+		{EMorseDurationUnit::NextSymbol, 1},
 		{EMorseDurationUnit::NextLetter, 3},
 		{EMorseDurationUnit::NextWord, 7}
 	};
@@ -61,8 +72,9 @@ private:
 	ULightComponent* TargetLight = nullptr;
 
 	void InitTargetLight();
-	void StartFlickering();
 	void HandleNextSymbol();
-	void SetLightState(bool bIsEnabled);
+	
+	void UpdateLightState(bool bIsEnabled) const;
+	void SetLightVisibility(bool bIsEnabled) const;
 	float GetDuration(EMorseDurationUnit DurationUnit);
 };
